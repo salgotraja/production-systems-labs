@@ -35,9 +35,18 @@ tasks.register<JavaExec>("runPost1") {
     description = "Run Post 1: Why Average Latency Lies"
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("dev.engnotes.labs.latency.Post1Main")
-    // Run from the repo root so --output-dir ./results resolves relative to the root
     workingDir = rootProject.projectDir
-    // Allow --args="..." from command line
+    if (project.hasProperty("args")) {
+        args = (project.property("args") as String).split(" ")
+    }
+}
+
+tasks.register<JavaExec>("runPost2") {
+    group = "latency-lab"
+    description = "Run Post 2: Queueing Theory for Engineers"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.engnotes.labs.latency.Post2Main")
+    workingDir = rootProject.projectDir
     if (project.hasProperty("args")) {
         args = (project.property("args") as String).split(" ")
     }
