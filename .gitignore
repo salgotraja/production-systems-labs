@@ -1,5 +1,8 @@
 .gradle
 build/
+# Experiment outputs — golden/ is committed, local results/ are not
+results/
+ci-results/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/

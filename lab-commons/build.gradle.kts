@@ -8,6 +8,16 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
 
-// Root project: no java plugin. Each subproject applies dev.engnotes.java-conventions.
-group = "dev.engnotes"
-version = "1.0.0"
+plugins {
+    id("dev.engnotes.java-conventions")
+}
+
+group = "dev.engnotes.labs"
+
+dependencies {
+    implementation(libs.hdrhistogram)
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.launcher)
+}
