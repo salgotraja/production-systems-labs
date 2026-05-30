@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Locale;
 
 /**
  * Writes periodic CSV snapshots to a file.
@@ -110,10 +111,12 @@ public final class CsvSnapshotWriter implements Closeable {
     }
 
     private static String formatMs(double ms) {
-        return String.format("%.1f", ms);
+        // Locale.ROOT: comma-decimal locales (e.g. de_DE) would emit "20,0",
+        // which both breaks the CSV delimiter and the golden-file contract.
+        return String.format(Locale.ROOT, "%.1f", ms);
     }
 
     private static String formatRps(double rps) {
-        return String.format("%.1f", rps);
+        return String.format(Locale.ROOT, "%.1f", rps);
     }
 }

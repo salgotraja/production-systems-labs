@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Locale;
 
 public final class SloPolicyMain {
 
@@ -93,7 +94,7 @@ public final class SloPolicyMain {
             writer.write(SUMMARY_HEADER);
             writer.newLine();
             for (SloSummary summary : result.summaries()) {
-                writer.write(String.format("%s,%d,%d,%d,%.2f,%.2f,%.2f,%s",
+                writer.write(String.format(Locale.ROOT, "%s,%d,%d,%d,%.2f,%.2f,%.2f,%s",
                         summary.pattern().label(),
                         summary.totalRequests(),
                         summary.goodRequests(),
@@ -115,7 +116,7 @@ public final class SloPolicyMain {
             writer.write(WINDOW_HEADER);
             writer.newLine();
             for (SloWindow window : result.windows()) {
-                writer.write(String.format("%s,%d,%d,%d,%d,%.1f,%.2f,%.2f,%.2f,%s",
+                writer.write(String.format(Locale.ROOT, "%s,%d,%d,%d,%d,%.1f,%.2f,%.2f,%.2f,%s",
                         window.pattern().label(),
                         window.elapsedSeconds(),
                         window.totalRequests(),

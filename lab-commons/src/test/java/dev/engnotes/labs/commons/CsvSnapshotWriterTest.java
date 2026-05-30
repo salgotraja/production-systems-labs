@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -67,6 +68,23 @@ class CsvSnapshotWriterTest {
         String row = CsvSnapshotWriter.formatRow(snap);
         String[] cols = row.split(",");
         assertEquals(9, cols.length, "CSV must have exactly 9 columns per ADR-005");
+    }
+
+    @Test
+    void formatsWithDotDecimalUnderCommaLocale() {
+        // Regression guard: under a comma-decimal locale (e.g. de_DE), a naive
+        // String.format("%.1f", 20.0) emits "20,0", which both corrupts the CSV
+        // (comma is the delimiter) and breaks the golden-file contract.
+        Locale original = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.GERMANY);
+            String row = CsvSnapshotWriter.formatRow(
+                    new PercentileSnapshot(1000L, 1, 20.0, 45.5, 99.0, 150.0, 1000.0, 0, 1000));
+            assertEquals("1000,1,20.0,45.5,99.0,150.0,1000.0,0,1000", row);
+            assertEquals(9, row.split(",", -1).length, "column count must be locale-independent");
+        } finally {
+            Locale.setDefault(original);
+        }
     }
 
     @Test

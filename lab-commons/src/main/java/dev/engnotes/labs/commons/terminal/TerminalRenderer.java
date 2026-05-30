@@ -18,6 +18,7 @@ package dev.engnotes.labs.commons.terminal;
 import dev.engnotes.labs.commons.histogram.PercentileSnapshot;
 
 import java.io.PrintStream;
+import java.util.Locale;
 
 /**
  * Renders live experiment progress to stdout.
@@ -140,10 +141,10 @@ public final class TerminalRenderer {
     }
 
     private static String formatMs(double ms) {
-        return String.format("%6.1fms", ms);
+        return String.format(Locale.ROOT, "%6.1fms", ms);
     }
 
     private static String formatRps(double rps) {
-        return String.format("%7.0f", rps);
+        return String.format(Locale.ROOT, "%7.0f", rps);
     }
 }

@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.Locale;
 
 public final class HedgedRequestsMain {
 
@@ -118,7 +119,7 @@ public final class HedgedRequestsMain {
             writer.write(COST_CSV_HEADER);
             writer.newLine();
             for (HedgeCostPoint point : points) {
-                writer.write(String.format("%s,%d,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d",
+                writer.write(String.format(Locale.ROOT, "%s,%d,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d",
                         point.threshold().label(),
                         point.thresholdMs(),
                         point.baselineP99Ms(),

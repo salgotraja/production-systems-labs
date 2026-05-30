@@ -49,7 +49,12 @@ public final class CliParser {
                 }
                 case "--concurrency" -> {
                     i = requireNext(args, i, token);
-                    builder.concurrency(parseInt(args[i], token));
+                    int concurrency = parseInt(args[i], token);
+                    if (concurrency < 1) {
+                        throw new CliParseException(
+                                "Flag '--concurrency' must be >= 1, got: " + concurrency);
+                    }
+                    builder.concurrency(concurrency);
                 }
                 case "--output-dir" -> {
                     i = requireNext(args, i, token);
@@ -84,22 +89,27 @@ public final class CliParser {
      * {@code h} (hours). Example: {@code "30s"}, {@code "2m"}.
      */
     static Duration parseDuration(String value) {
+        Duration parsed;
         try {
             if (value.endsWith("ms")) {
-                return Duration.ofMillis(Long.parseLong(value.substring(0, value.length() - 2)));
+                parsed = Duration.ofMillis(Long.parseLong(value.substring(0, value.length() - 2)));
             } else if (value.endsWith("s")) {
-                return Duration.ofSeconds(Long.parseLong(value.substring(0, value.length() - 1)));
+                parsed = Duration.ofSeconds(Long.parseLong(value.substring(0, value.length() - 1)));
             } else if (value.endsWith("m")) {
-                return Duration.ofMinutes(Long.parseLong(value.substring(0, value.length() - 1)));
+                parsed = Duration.ofMinutes(Long.parseLong(value.substring(0, value.length() - 1)));
             } else if (value.endsWith("h")) {
-                return Duration.ofHours(Long.parseLong(value.substring(0, value.length() - 1)));
+                parsed = Duration.ofHours(Long.parseLong(value.substring(0, value.length() - 1)));
             } else {
-                return Duration.ofSeconds(Long.parseLong(value));
+                parsed = Duration.ofSeconds(Long.parseLong(value));
             }
         } catch (NumberFormatException e) {
             throw new CliParseException("Invalid duration value: '" + value
                     + "'. Expected format: 30s, 2m, 1h, 500ms");
         }
+        if (parsed.isZero() || parsed.isNegative()) {
+            throw new CliParseException("Duration must be positive, got: '" + value + "'");
+        }
+        return parsed;
     }
 
     private static int requireNext(String[] args, int i, String flag) {
