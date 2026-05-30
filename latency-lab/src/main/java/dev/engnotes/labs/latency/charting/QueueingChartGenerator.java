@@ -30,7 +30,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Generates XChart PNG charts from Post 2 saturation sweep data.
+ * Generates XChart PNG charts from saturation sweep data.
  * All methods are static — no instances needed.
  */
 public final class QueueingChartGenerator {

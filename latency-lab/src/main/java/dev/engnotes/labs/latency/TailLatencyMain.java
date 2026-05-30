@@ -31,7 +31,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Entry point for Post 1: <em>Why Average Latency Lies</em>.
+ * Entry point for the tail-latency amplification experiment.
  *
  * <p>Runs two back-to-back scenarios and writes CSV snapshots + PNG charts to
  * {@code --output-dir}:
@@ -45,15 +45,15 @@ import java.util.List;
  *
  * <p>Invoke via Gradle:
  * <pre>
- *   ./gradlew :latency-lab:runPost1 --args="--deterministic --duration 30s --concurrency 100"
+ *   ./gradlew :latency-lab:runTailLatency -Pargs="--deterministic --duration 30s --concurrency 100"
  * </pre>
  */
-public final class Post1Main {
+public final class TailLatencyMain {
 
     private static final String SCENARIO_BASELINE = "Scenario 1: Normal Latency Distribution";
     private static final String SCENARIO_TAIL     = "Scenario 2: Tail Amplification (5-service fan-out)";
 
-    private Post1Main() {}
+    private TailLatencyMain() {}
 
     /**
      * Main entry point.
@@ -99,6 +99,13 @@ public final class Post1Main {
         saveCharts(baselineSnapshots, tailSnapshots, cliArgs.outputDir());
         System.out.printf("  Charts saved to: %s%n%n", cliArgs.outputDir());
 
+        PostArtifacts.write(
+                ExperimentRegistry.TAIL_LATENCY,
+                cliArgs,
+                args,
+                PostArtifacts.csv("Baseline", baselineCsv),
+                PostArtifacts.csv("Tail amplification", tailCsv));
+
         // --- Final comparison ---
         printComparison(baselineSnapshots, tailSnapshots);
     }
@@ -109,7 +116,7 @@ public final class Post1Main {
 
     private static void printBanner(CliArgs args) {
         System.out.println("=================================================");
-        System.out.println("  Post 1: Why Average Latency Lies");
+        System.out.println("  Tail Latency and Fan-out Amplification");
         System.out.println("=================================================");
         System.out.printf("  Duration:    %s%n", args.duration());
         System.out.printf("  Concurrency: %d virtual clients%n", args.concurrency());
@@ -152,12 +159,12 @@ public final class Post1Main {
         LatencyChartGenerator.saveLatencyChart(
                 baseline,
                 outputDir.resolve("post1-baseline"),
-                "Post 1: Normal Latency — p50 vs p99 vs p99.9");
+                "Normal Latency — p50 vs p99 vs p99.9");
 
         LatencyChartGenerator.saveLatencyChart(
                 tail,
                 outputDir.resolve("post1-tail-amplification"),
-                "Post 1: Tail Amplification — p50 vs p99 vs p99.9");
+                "Tail Amplification — p50 vs p99 vs p99.9");
 
         LatencyChartGenerator.saveComparisonChart(
                 baseline,

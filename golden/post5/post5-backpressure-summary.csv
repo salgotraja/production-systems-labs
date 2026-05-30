@@ -1,0 +1,6 @@
+strategy,incoming_requests,accepted_requests,rejected_requests,acceptance_pct,p50_ms,p99_ms,max_buffered
+token-bucket,1000,599,401,59.9,10.0,10.0,0
+bounded-queue,1000,549,451,54.9,500.0,500.0,50
+leaky-bucket,1000,524,476,52.4,250.0,250.0,25
+load-shedder,1000,500,500,50.0,50.0,50.0,5
+resilience4j-rate-limiter,1000,500,500,50.0,10.0,10.0,0

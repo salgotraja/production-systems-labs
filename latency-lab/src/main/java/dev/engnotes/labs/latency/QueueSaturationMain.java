@@ -31,9 +31,9 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 /**
- * Entry point for Post 2: <em>Queueing Theory for Engineers</em>.
+ * Entry point for the queue-saturation experiment.
  *
- * <p>Runs a saturation sweep across 12 utilization levels (ρ = 0.1 → 1.2) and produces:
+ * <p>Runs a saturation sweep across utilization levels from ρ = 0.1 to 1.3 and produces:
  * <ul>
  *   <li>A saturation summary CSV showing throughput, latency, queue depth, and
  *       Little's Law validation at each utilization level</li>
@@ -43,10 +43,10 @@ import java.util.List;
  *
  * <p>Invoke via Gradle:
  * <pre>
- *   ./gradlew :latency-lab:runPost2 --args="--deterministic --duration 3s --concurrency 1 --output-dir ./results/post2"
+ *   ./gradlew :latency-lab:runQueueSaturation -Pargs="--deterministic --duration 3s --concurrency 1 --output-dir ./results/queue-saturation"
  * </pre>
  */
-public final class Post2Main {
+public final class QueueSaturationMain {
 
     /** Fixed service time per request; determines server capacity μ = 1000 / SERVICE_TIME_MS rps. */
     private static final long SERVICE_TIME_MS = 10L;
@@ -57,7 +57,7 @@ public final class Post2Main {
             + "mean_sojourn_ms,avg_queue_depth,rejection_count,"
             + "littles_law_computed_l,littles_law_measured_l,littles_law_error_pct";
 
-    private Post2Main() {}
+    private QueueSaturationMain() {}
 
     /**
      * Main entry point.
@@ -71,11 +71,10 @@ public final class Post2Main {
         printBanner(cliArgs);
 
         // --- Run saturation sweep ---
-        System.out.println("Running saturation sweep (ρ = 0.1 → 1.2)...");
-        System.out.printf("  Service time: %dms | Capacity: %.0f rps | %d utilization levels%n%n",
+        System.out.println("Running saturation sweep (ρ = 0.1 → 1.3)...");
+        System.out.printf("  Service time: %dms | Capacity: %.0f rps%n%n",
                 SERVICE_TIME_MS,
-                1000.0 / SERVICE_TIME_MS,
-                12);
+                1000.0 / SERVICE_TIME_MS);
 
         SaturationScenario scenario = new SaturationScenario(SERVICE_TIME_MS, cliArgs.isDeterministic());
         List<SaturationPoint> points = scenario.run(cliArgs);
@@ -100,6 +99,12 @@ public final class Post2Main {
         QueueingChartGenerator.saveLittlesLawChart(points, littlesLawChart);
         System.out.printf("Charts saved to: %s%n%n", cliArgs.outputDir());
 
+        PostArtifacts.write(
+                ExperimentRegistry.QUEUE_SATURATION,
+                cliArgs,
+                args,
+                PostArtifacts.csv("Saturation sweep", saturationCsv));
+
         // --- Print Little's Law verification summary ---
         printLittlesLawSummary(points);
     }
@@ -110,7 +115,7 @@ public final class Post2Main {
 
     private static void printBanner(CliArgs args) {
         System.out.println("=================================================");
-        System.out.println("  Post 2: Queueing Theory for Engineers");
+        System.out.println("  Queue Saturation and Little's Law");
         System.out.println("=================================================");
         System.out.printf("  Duration per level: %s%n", args.duration());
         System.out.printf("  Mode:               %s%n",
@@ -128,7 +133,7 @@ public final class Post2Main {
             w.newLine();
             for (SaturationPoint p : points) {
                 LittlesLawResult ll = p.littlesLaw();
-                w.write(String.format("%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%d,%.3f,%.3f,%.1f",
+                w.write(String.format("%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%d,%.3f,%.3f,%.1f",
                         p.targetUtilization(),
                         p.targetRps(),
                         p.actualThroughputRps(),
@@ -159,7 +164,7 @@ public final class Post2Main {
             String marker = p.targetUtilization() >= 1.0 ? " ← SATURATED"
                     : p.targetUtilization() >= 0.7 ? " ← knee"
                     : "";
-            System.out.printf("  %-6.1f  %-9.1f  %-9.1f  %-9.1f  %-9.1f  %-10.2f  %-10d  %-6.0f%%%s%n",
+            System.out.printf("  %-6.2f  %-9.1f  %-9.1f  %-9.1f  %-9.1f  %-10.2f  %-10d  %-6.0f%%%s%n",
                     p.targetUtilization(),
                     p.targetRps(),
                     p.actualThroughputRps(),
@@ -183,7 +188,7 @@ public final class Post2Main {
 
         for (SaturationPoint p : points) {
             LittlesLawResult ll = p.littlesLaw();
-            System.out.printf("  %-6.1f  %-10.1f  %-12.1f  %-12.3f  %-12.3f  %-8.1f%%%n",
+            System.out.printf("  %-6.2f  %-10.1f  %-12.1f  %-12.3f  %-12.3f  %-8.1f%%%n",
                     p.targetUtilization(),
                     ll.lambdaRps(),
                     ll.meanSojournMs(),

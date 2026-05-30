@@ -1,0 +1,5 @@
+pattern,total_requests,good_requests,bad_requests,achieved_sli_pct,worst_burn_rate,final_budget_remaining_pct,alert_triggered
+baseline,5000,2868,2132,57.36,100.00,0.00,true
+bulkhead,5000,4980,20,99.60,1.00,60.00,false
+timeout-budget,5000,2868,2132,57.36,100.00,0.00,true
+concurrency-limit,5000,4960,40,99.20,2.00,20.00,true

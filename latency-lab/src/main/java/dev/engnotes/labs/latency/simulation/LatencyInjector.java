@@ -75,8 +75,19 @@ public final class LatencyInjector {
      *                      each thread gets an independently seeded {@link Random}
      */
     public LatencyInjector(boolean deterministic) {
+        this(deterministic, DETERMINISTIC_SEED);
+    }
+
+    /**
+     * Creates a new {@code LatencyInjector} with an explicit deterministic base seed.
+     *
+     * @param deterministic if {@code true}, each thread receives a unique seed derived from
+     *                      {@code deterministicSeed}; if {@code false}, the seed is ignored
+     * @param deterministicSeed base seed for deterministic runs
+     */
+    public LatencyInjector(boolean deterministic, long deterministicSeed) {
         if (deterministic) {
-            AtomicLong seedCounter = new AtomicLong(DETERMINISTIC_SEED);
+            AtomicLong seedCounter = new AtomicLong(deterministicSeed);
             this.threadLocalRandom = ThreadLocal.withInitial(
                     () -> new Random(seedCounter.getAndIncrement()));
         } else {

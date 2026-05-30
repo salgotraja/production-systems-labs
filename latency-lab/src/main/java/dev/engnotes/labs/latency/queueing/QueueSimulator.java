@@ -31,7 +31,7 @@ import java.util.concurrent.locks.LockSupport;
 
 /**
  * Simulates a bounded M/D/c queue to demonstrate queueing theory concepts for
- * Post 2: "Queueing Theory for Engineers".
+ * the queue-saturation experiment.
  *
  * <p>Architecture — producer-consumer model:
  * <pre>
@@ -67,10 +67,9 @@ public final class QueueSimulator {
      * @param serviceTimeMs  fixed service time per request in milliseconds (e.g. 10);
      *                       determines server utilisation ρ = λ / (μ × c)
      * @param workerCount    number of parallel worker (server) virtual threads (e.g. 1 for M/D/1)
-     * @param deterministic  if {@code true}, workers and the producer call {@code Thread.sleep}
-     *                       so wall-clock time tracks simulated time; if {@code false}, the
-     *                       producer uses {@link LockSupport#parkNanos} for sub-millisecond
-     *                       precision and workers do not sleep
+     * @param deterministic  if {@code true}, uses a discrete-event model for reproducible
+     *                       output; if {@code false}, uses virtual-thread producer and worker
+     *                       scheduling with wall-clock service delay
      */
     public QueueSimulator(int queueCapacity, long serviceTimeMs, int workerCount, boolean deterministic) {
         this.queueCapacity = queueCapacity;
@@ -86,7 +85,7 @@ public final class QueueSimulator {
      * <p>One virtual-thread producer generates requests at {@code arrivalRateRps} and
      * offers each to a bounded {@link LinkedBlockingQueue}. A pool of {@code workerCount}
      * virtual-thread workers drain the queue, sleeping for {@code serviceTimeMs} per
-     * request (in deterministic mode), and record the sojourn time (queue wait +
+     * request, and record the sojourn time (queue wait +
      * service time) into the shared histogram. A reporter on the calling thread emits
      * one {@link PercentileSnapshot} per snapshot interval.
      *
@@ -95,6 +94,10 @@ public final class QueueSimulator {
      * @return aggregate run result including snapshots, queue depth, rejections, and mean sojourn
      */
     public QueueRunResult run(CliArgs args, double arrivalRateRps) {
+        if (deterministic) {
+            return runDeterministic(args, arrivalRateRps);
+        }
+
         long startMs = System.currentTimeMillis();
         long durationMs = args.duration().toMillis();
         long snapshotIntervalMs = args.snapshotInterval().toMillis();
@@ -122,9 +125,7 @@ public final class QueueSimulator {
                             continue;
                         }
                         long waitMs = System.currentTimeMillis() - req.enqueueTimeMs();
-                        if (deterministic) {
-                            Thread.sleep(serviceTimeMs);
-                        }
+                        Thread.sleep(serviceTimeMs);
                         long sojournMs = waitMs + serviceTimeMs;
                         histogram.recordLatency(sojournMs);
                         sojournSum.addAndGet(sojournMs);
@@ -216,6 +217,84 @@ public final class QueueSimulator {
 
         return new QueueRunResult(snapshots, avgDepth, rejectionCount.get(),
                 actualThroughput, meanSojourn);
+    }
+
+    private QueueRunResult runDeterministic(CliArgs args, double arrivalRateRps) {
+        long durationMs = Math.max(1L, args.duration().toMillis());
+        long snapshotIntervalMs = Math.max(1L, Math.min(args.snapshotInterval().toMillis(), durationMs));
+        long totalArrivals = Math.max(1L, Math.round(arrivalRateRps * durationMs / 1_000.0));
+        double interArrivalMs = 1_000.0 / arrivalRateRps;
+        double[] workerAvailableAtMs = new double[workerCount];
+        List<Histogram> intervals = new ArrayList<>();
+        int intervalCount = Math.toIntExact(Math.max(1L, durationMs / snapshotIntervalMs));
+        for (int i = 0; i < intervalCount; i++) {
+            intervals.add(new Histogram(60_000L, 3));
+        }
+
+        long completed = 0L;
+        long rejected = 0L;
+        long sojournSum = 0L;
+        long queueDepthSum = 0L;
+
+        for (long request = 0L; request < totalArrivals; request++) {
+            double arrivalMs = request * interArrivalMs;
+            int workerIndex = nextWorker(workerAvailableAtMs);
+            double serviceStartMs = Math.max(arrivalMs, workerAvailableAtMs[workerIndex]);
+            long queuedAhead = queuedAhead(workerAvailableAtMs, arrivalMs);
+            if (queuedAhead >= queueCapacity) {
+                rejected++;
+                queueDepthSum += queueCapacity;
+                continue;
+            }
+
+            double finishMs = serviceStartMs + serviceTimeMs;
+            workerAvailableAtMs[workerIndex] = finishMs;
+            long sojournMs = Math.max(serviceTimeMs, Math.round(finishMs - arrivalMs));
+            sojournSum += sojournMs;
+            queueDepthSum += queuedAhead;
+            completed++;
+
+            int intervalIndex = Math.toIntExact(Math.min(
+                    Math.max(0L, (long) arrivalMs / snapshotIntervalMs),
+                    intervalCount - 1L));
+            intervals.get(intervalIndex).recordValue(sojournMs);
+        }
+
+        List<PercentileSnapshot> snapshots = new ArrayList<>(intervals.size());
+        long cumulativeCompleted = 0L;
+        double intervalSeconds = snapshotIntervalMs / 1_000.0;
+        for (int i = 0; i < intervals.size(); i++) {
+            Histogram interval = intervals.get(i);
+            cumulativeCompleted += interval.getTotalCount();
+            long elapsedSeconds = ((i + 1L) * snapshotIntervalMs) / 1_000L;
+            snapshots.add(PercentileSnapshot.from(interval, 0L, elapsedSeconds,
+                    interval.getTotalCount() / intervalSeconds, rejected, cumulativeCompleted));
+        }
+
+        double avgDepth = totalArrivals == 0L ? 0.0 : (double) queueDepthSum / totalArrivals;
+        double actualThroughput = completed / (durationMs / 1_000.0);
+        double meanSojourn = completed == 0L ? serviceTimeMs : (double) sojournSum / completed;
+        return new QueueRunResult(snapshots, avgDepth, rejected, actualThroughput, meanSojourn);
+    }
+
+    private static int nextWorker(double[] workerAvailableAtMs) {
+        int selected = 0;
+        for (int i = 1; i < workerAvailableAtMs.length; i++) {
+            if (workerAvailableAtMs[i] < workerAvailableAtMs[selected]) {
+                selected = i;
+            }
+        }
+        return selected;
+    }
+
+    private long queuedAhead(double[] workerAvailableAtMs, double arrivalMs) {
+        long queued = 0L;
+        for (double availableAtMs : workerAvailableAtMs) {
+            if (availableAtMs > arrivalMs) {
+                queued += Math.max(1L, (long) Math.ceil((availableAtMs - arrivalMs) / serviceTimeMs));
+            }
+        }
+        return Math.max(0L, queued - workerAvailableAtMs.length);
     }
 
     /**

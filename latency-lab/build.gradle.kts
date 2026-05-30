@@ -23,6 +23,7 @@ group = "dev.engnotes.labs"
 dependencies {
     implementation(project(":lab-commons"))
     implementation(libs.hdrhistogram)
+    implementation(libs.resilience4j.ratelimiter)
     implementation(libs.xchart)
 
     testImplementation(platform(libs.junit.bom))
@@ -30,24 +31,49 @@ dependencies {
     testRuntimeOnly(libs.junit.launcher)
 }
 
-tasks.register<JavaExec>("runPost1") {
-    group = "latency-lab"
-    description = "Run Post 1: Why Average Latency Lies"
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("dev.engnotes.labs.latency.Post1Main")
+tasks.withType<Test>().configureEach {
+    systemProperty("golden.dir", rootProject.projectDir.resolve("golden").absolutePath)
     workingDir = rootProject.projectDir
-    if (project.hasProperty("args")) {
-        args = (project.property("args") as String).split(" ")
+}
+
+fun registerExperimentTask(taskName: String, title: String, mainClassName: String) {
+    tasks.register<JavaExec>(taskName) {
+        group = "latency-lab"
+        description = "Run experiment: $title"
+        classpath = sourceSets["main"].runtimeClasspath
+        mainClass.set(mainClassName)
+        workingDir = rootProject.projectDir
+        if (project.hasProperty("args")) {
+            args = (project.property("args") as String).split(" ")
+        }
     }
 }
 
-tasks.register<JavaExec>("runPost2") {
-    group = "latency-lab"
-    description = "Run Post 2: Queueing Theory for Engineers"
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("dev.engnotes.labs.latency.Post2Main")
-    workingDir = rootProject.projectDir
-    if (project.hasProperty("args")) {
-        args = (project.property("args") as String).split(" ")
+fun registerPostAlias(number: Int, targetTask: String, title: String) {
+    tasks.register("runPost$number") {
+        group = "latency-lab"
+        description = "Compatibility alias for $targetTask ($title)"
+        dependsOn(targetTask)
     }
+}
+
+data class ExperimentTask(
+    val postNumber: Int,
+    val taskName: String,
+    val title: String,
+    val mainClassName: String,
+)
+
+val experiments = listOf(
+    ExperimentTask(1, "runTailLatency", "Tail latency and fan-out amplification", "dev.engnotes.labs.latency.TailLatencyMain"),
+    ExperimentTask(2, "runQueueSaturation", "Queue saturation and Little's Law", "dev.engnotes.labs.latency.QueueSaturationMain"),
+    ExperimentTask(3, "runHedgedRequests", "Hedged requests and speculative execution", "dev.engnotes.labs.latency.HedgedRequestsMain"),
+    ExperimentTask(4, "runCoordinatedOmission", "Coordinated omission measurement", "dev.engnotes.labs.latency.CoordinatedOmissionMain"),
+    ExperimentTask(5, "runBackpressure", "Backpressure strategy comparison", "dev.engnotes.labs.latency.BackpressureMain"),
+    ExperimentTask(6, "runSloPolicy", "SLO policy and burn-rate simulation", "dev.engnotes.labs.latency.SloPolicyMain"),
+)
+
+experiments.forEach { experiment ->
+    registerExperimentTask(experiment.taskName, experiment.title, experiment.mainClassName)
+    registerPostAlias(experiment.postNumber, experiment.taskName, experiment.title)
 }

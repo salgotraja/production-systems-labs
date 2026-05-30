@@ -1,0 +1,4 @@
+series,total_requests,whole_run_p99_ms
+closed-loop-raw,450,10.0
+closed-loop-corrected,450,460.0
+open-loop,500,460.0

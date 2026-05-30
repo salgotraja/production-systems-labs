@@ -45,10 +45,9 @@ public final class RequestSimulator {
      *
      * @param injector      provides sampled latency values per request
      * @param histogram     shared histogram to record latency into (thread-safe)
-     * @param deterministic if {@code true}, each simulated request calls
-     *                      {@code Thread.sleep} for the sampled latency so elapsed
-     *                      wall-clock time matches the simulation; if {@code false},
-     *                      latency is recorded instantly for faster throughput
+     * @param deterministic if {@code true}, uses a synthetic fixed-rate loop for
+     *                      reproducible output; if {@code false}, virtual-thread
+     *                      requests sleep for the sampled latency
      */
     public RequestSimulator(LatencyInjector injector, LatencyHistogram histogram, boolean deterministic) {
         this.injector = injector;
@@ -67,6 +66,10 @@ public final class RequestSimulator {
      * @return ordered list of percentile snapshots, one per completed snapshot interval
      */
     public List<PercentileSnapshot> run(CliArgs args) {
+        if (deterministic) {
+            return runDeterministic(args);
+        }
+
         long startMs = System.currentTimeMillis();
         long durationMs = args.duration().toMillis();
         long snapshotIntervalMs = args.snapshotInterval().toMillis();
@@ -81,9 +84,7 @@ public final class RequestSimulator {
             for (int i = 0; i < concurrency; i++) {
                 tasks.add(() -> {
                     long latencyMs = injector.sampleLatencyMs();
-                    if (deterministic) {
-                        Thread.sleep(latencyMs);
-                    }
+                    Thread.sleep(latencyMs);
                     histogram.recordLatency(latencyMs);
                     return latencyMs;
                 });
@@ -109,6 +110,29 @@ public final class RequestSimulator {
                         throughputRps, totalErrors, totalRequests));
                 nextSnapshotMs += snapshotIntervalMs;
             }
+        }
+
+        return snapshots;
+    }
+
+    private List<PercentileSnapshot> runDeterministic(CliArgs args) {
+        int seconds = Math.toIntExact(Math.max(1L, args.duration().toSeconds()));
+        int snapshotIntervalSeconds = Math.min(seconds,
+                Math.toIntExact(Math.max(1L, args.snapshotInterval().toSeconds())));
+        int requestsPerSecond = Math.max(1, args.concurrency() * 100);
+        long totalRequests = 0L;
+        List<PercentileSnapshot> snapshots = new ArrayList<>();
+
+        for (int elapsedSeconds = snapshotIntervalSeconds; elapsedSeconds <= seconds;
+                elapsedSeconds += snapshotIntervalSeconds) {
+            Histogram interval = new Histogram(60_000L, 3);
+            int intervalRequests = requestsPerSecond * snapshotIntervalSeconds;
+            for (int i = 0; i < intervalRequests; i++) {
+                interval.recordValue(injector.sampleLatencyMs());
+            }
+            totalRequests += interval.getTotalCount();
+            snapshots.add(PercentileSnapshot.from(interval, 0L, elapsedSeconds,
+                    requestsPerSecond, 0L, totalRequests));
         }
 
         return snapshots;

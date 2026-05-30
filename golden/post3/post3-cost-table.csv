@@ -1,0 +1,4 @@
+threshold,threshold_ms,baseline_p99_ms,hedged_p99_ms,p99_improvement_pct,extra_load_pct,hedged_requests,total_requests,wasted_work_ms,wasted_completions
+p90,27,200.0,41.0,79.5,7.5,377,5000,3412,0
+p95,29,200.0,43.0,78.5,3.7,186,5000,2987,0
+p99,200,200.0,200.0,0.0,0.6,31,5000,6845,0

@@ -21,8 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Runs a saturation sweep: executes QueueSimulator at 12 utilization levels from
- * ρ=0.1 to ρ=1.2 and returns a SaturationPoint per level.
+ * Runs a saturation sweep: executes QueueSimulator from ρ=0.1 to ρ=1.3 and
+ * returns a SaturationPoint per level.
  *
  * <p>The sweep reveals:
  * <ul>
@@ -33,9 +33,11 @@ import java.util.List;
  */
 public final class SaturationScenario {
 
-    // 12 utilization levels from under-loaded to over-saturated
     private static final double[] UTILIZATION_LEVELS = {
-        0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2
+        0.1, 0.2, 0.3, 0.4, 0.5,
+        0.6, 0.7, 0.8, 0.9, 0.95,
+        1.0, 1.05, 1.1, 1.15, 1.2,
+        1.25, 1.3
     };
 
     private static final int QUEUE_CAPACITY = 200;
