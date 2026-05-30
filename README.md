@@ -2,7 +2,7 @@
 
 Companion research harness for the **Production Systems Engineering** blog series on [engnotes.dev](https://engnotes.dev).
 
-Runnable Java experiments — tail latency, queueing theory, hedged requests, coordinated omission, backpressure, SLO engineering.
+Runnable Java experiments - tail latency, queueing theory, hedged requests, coordinated omission, backpressure, SLO engineering.
 Experiments use topic-based class and task names; article numbers are compatibility aliases.
 
 ## Prerequisites
@@ -14,7 +14,7 @@ Experiments use topic-based class and task names; article numbers are compatibil
 
 ```bash
 # Clone and verify the build
-git clone https://github.com/jagdish-engnotes/production-systems-labs.git
+git clone https://github.com/salgotraja/production-systems-labs.git
 cd production-systems-labs
 ./gradlew build --no-daemon
 ```
@@ -23,14 +23,12 @@ cd production-systems-labs
 
 | Post | Topic | Gradle Task | Deterministic result |
 |------|-------|-------------|----------------------|
-| 1 | [Why Average Latency Lies](posts/post-1-why-average-latency-lies.md) | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
-| 2 | [Queueing Theory for Engineers](posts/post-2-queueing-theory-for-engineers.md) | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
+| 1 | Why Average Latency Lies | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
+| 2 | Queueing Theory for Engineers | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
 | 3 | Hedged Requests & Speculative Execution | `./gradlew :latency-lab:runHedgedRequests` | p95 hedge p99 `43.0ms`, extra load `3.7%` |
 | 4 | The Coordinated Omission Problem | `./gradlew :latency-lab:runCoordinatedOmission` | closed-loop raw p99 `10.0ms`, corrected p99 `460.0ms` |
 | 5 | Backpressure Design Patterns | `./gradlew :latency-lab:runBackpressure` | token-bucket accepted `599`, rejected `401`, p99 `10.0ms` |
 | 6 | SLO Engineering | `./gradlew :latency-lab:runSloPolicy` | bulkhead SLI `99.60%`, worst burn `1.00x` |
-
-Post 1 and Post 2 currently link to local drafts. Public engnotes.dev links should be added only after the articles are live. `runPostN` compatibility aliases exist, but launch-facing docs use topic-based task names so code entry points are not tied to publication order.
 
 ### Standard Flags (all experiments)
 
@@ -59,7 +57,6 @@ production-systems-labs/
 ├── lab-commons/              # shared: histogram, csv, cli, terminal, concurrency
 ├── latency-lab/              # Series 1 (6 posts)
 ├── golden/                   # reference output for golden file tests
-├── docs/                     # requirements, tasks, ADRs
 └── .github/workflows/        # build + golden CSV regression tests
 ```
 
