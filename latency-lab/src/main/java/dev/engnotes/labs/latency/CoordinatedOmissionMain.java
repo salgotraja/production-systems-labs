@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class CoordinatedOmissionMain {
 
@@ -136,7 +137,7 @@ public final class CoordinatedOmissionMain {
 
     private static void writeSummaryRow(BufferedWriter writer, String name, CoordinatedOmissionRun run)
             throws IOException {
-        writer.write(String.format("%s,%d,%.1f",
+        writer.write(String.format(Locale.ROOT, "%s,%d,%.1f",
                 name,
                 run.totalRequests(),
                 run.wholeRunP99Ms()));

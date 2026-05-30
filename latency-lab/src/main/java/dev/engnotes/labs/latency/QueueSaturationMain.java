@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Entry point for the queue-saturation experiment.
@@ -133,7 +134,7 @@ public final class QueueSaturationMain {
             w.newLine();
             for (SaturationPoint p : points) {
                 LittlesLawResult ll = p.littlesLaw();
-                w.write(String.format("%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%d,%.3f,%.3f,%.1f",
+                w.write(String.format(Locale.ROOT, "%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%d,%.3f,%.3f,%.1f",
                         p.targetUtilization(),
                         p.targetRps(),
                         p.actualThroughputRps(),

@@ -73,6 +73,11 @@ public final class LatencyHistogram {
      * given the expected inter-arrival time in milliseconds.
      * <p>
      * Use this in Post 4 to demonstrate correct open-loop measurement.
+     * <p>
+     * WARNING: this flips the underlying accumulator, exactly like
+     * {@link #intervalHistogram()}. Call <em>either</em> this method <em>or</em>
+     * {@link #intervalHistogram()} per interval, never both on the same instance -
+     * the second call returns an empty histogram and the interval's data is lost.
      *
      * @param expectedIntervalMs expected time between requests in the open-loop scheduler
      * @return corrected histogram; caller owns it

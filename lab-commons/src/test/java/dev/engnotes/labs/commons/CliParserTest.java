@@ -107,7 +107,27 @@ class CliParserTest {
 
     @Test
     void concurrencyBelowOne_throws() {
-        assertThrows(IllegalArgumentException.class, () -> CliParser.parse(new String[]{"--concurrency", "0"}));
+        assertThrows(CliParseException.class, () -> CliParser.parse(new String[]{"--concurrency", "0"}));
+    }
+
+    @Test
+    void negativeConcurrency_throws() {
+        assertThrows(CliParseException.class, () -> CliParser.parse(new String[]{"--concurrency", "-5"}));
+    }
+
+    @Test
+    void zeroDuration_throws() {
+        assertThrows(CliParseException.class, () -> CliParser.parse(new String[]{"--duration", "0s"}));
+    }
+
+    @Test
+    void negativeDuration_throws() {
+        assertThrows(CliParseException.class, () -> CliParser.parse(new String[]{"--duration", "-5s"}));
+    }
+
+    @Test
+    void negativeSnapshotInterval_throws() {
+        assertThrows(CliParseException.class, () -> CliParser.parse(new String[]{"--snapshot-interval", "-1s"}));
     }
 
     @Test

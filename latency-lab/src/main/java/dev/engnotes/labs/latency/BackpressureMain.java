@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.Locale;
 
 public final class BackpressureMain {
 
@@ -97,7 +98,7 @@ public final class BackpressureMain {
             writer.write(SUMMARY_HEADER);
             writer.newLine();
             for (BackpressureSummary summary : summaries) {
-                writer.write(String.format("%s,%d,%d,%d,%.1f,%.1f,%.1f,%d",
+                writer.write(String.format(Locale.ROOT, "%s,%d,%d,%d,%.1f,%.1f,%.1f,%d",
                         summary.strategy().label(),
                         summary.incomingRequests(),
                         summary.acceptedRequests(),
@@ -120,7 +121,7 @@ public final class BackpressureMain {
             writer.write(SNAPSHOT_HEADER);
             writer.newLine();
             for (BackpressureSnapshot snapshot : snapshots) {
-                writer.write(String.format("%s,%d,%d,%d,%.1f,%.1f,%.1f,%d",
+                writer.write(String.format(Locale.ROOT, "%s,%d,%d,%d,%.1f,%.1f,%.1f,%d",
                         snapshot.strategy().label(),
                         snapshot.elapsedSeconds(),
                         snapshot.accepted(),
