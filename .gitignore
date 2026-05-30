@@ -44,3 +44,7 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### AI agent scaffolding (local only) ###
+.agents/
+AGENTS.md
