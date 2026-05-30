@@ -31,7 +31,7 @@ import java.util.List;
 
 /**
  * Generates XChart PNG charts from saturation sweep data.
- * All methods are static — no instances needed.
+ * All methods are static - no instances needed.
  */
 public final class QueueingChartGenerator {
 
@@ -43,7 +43,7 @@ public final class QueueingChartGenerator {
     /**
      * Saves a throughput vs utilization chart showing the knee of the curve.
      *
-     * <p>Plots two series — the intended target RPS and the actual measured throughput —
+     * <p>Plots two series - the intended target RPS and the actual measured throughput -
      * so readers can see where the system saturates and throughput collapses.
      * The path must NOT include the {@code .png} extension; {@link BitmapEncoder}
      * appends it automatically.
@@ -74,7 +74,7 @@ public final class QueueingChartGenerator {
         XYChart chart = new XYChartBuilder()
                 .width(CHART_WIDTH)
                 .height(CHART_HEIGHT)
-                .title("Throughput vs Utilization — Knee of the Curve")
+                .title("Throughput vs Utilization - Knee of the Curve")
                 .xAxisTitle("Utilization (ρ)")
                 .yAxisTitle("Throughput (rps)")
                 .build();
@@ -125,7 +125,7 @@ public final class QueueingChartGenerator {
         XYChart chart = new XYChartBuilder()
                 .width(CHART_WIDTH)
                 .height(CHART_HEIGHT)
-                .title("Latency vs Utilization — Exponential Blowup")
+                .title("Latency vs Utilization - Exponential Blowup")
                 .xAxisTitle("Utilization (ρ)")
                 .yAxisTitle("Sojourn Time (ms)")
                 .build();

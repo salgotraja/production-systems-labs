@@ -19,7 +19,7 @@ cd production-systems-labs
 ./gradlew build --no-daemon
 ```
 
-## Series 1 — Tail Latency & System Behavior (`latency-lab`)
+## Series 1 - Tail Latency & System Behavior (`latency-lab`)
 
 | Post | Topic | Gradle Task | Deterministic result |
 |------|-------|-------------|----------------------|
@@ -38,7 +38,7 @@ cd production-systems-labs
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--deterministic` | false | Fixed seed — reproducible output matching golden files |
+| `--deterministic` | false | Fixed seed - reproducible output matching golden files |
 | `--duration` | 30s | Experiment run time |
 | `--concurrency` | 100 | Concurrent virtual clients |
 | `--output-dir` | ./results | CSV and PNG output directory |
@@ -68,10 +68,10 @@ All experiments write CSV snapshots with this fixed schema (ADR-005):
 timestamp_ms,elapsed_s,p50_ms,p95_ms,p99_ms,p999_ms,throughput_rps,error_count,total_requests
 ```
 
-Columns are append-only — new columns may be added to the right in future posts.
+Columns are append-only - new columns may be added to the right in future posts.
 
 The checked-in golden CSV files are the numeric contract. PNG files and generated HTML reports are visual references; CI does not diff images or HTML.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 - see [LICENSE](LICENSE).

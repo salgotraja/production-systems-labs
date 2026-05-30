@@ -33,7 +33,7 @@ import java.util.concurrent.locks.LockSupport;
  * Simulates a bounded M/D/c queue to demonstrate queueing theory concepts for
  * the queue-saturation experiment.
  *
- * <p>Architecture — producer-consumer model:
+ * <p>Architecture - producer-consumer model:
  * <pre>
  * Producer thread (virtual) ─── inter-arrival sleep ───► BlockingQueue&lt;QueuedRequest&gt;
  *                                                         │ (capacity: queueCapacity)

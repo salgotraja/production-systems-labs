@@ -29,7 +29,7 @@ import java.nio.file.StandardOpenOption;
 /**
  * Writes periodic CSV snapshots to a file.
  * <p>
- * Column schema (append-only — never reorder or remove columns per ADR-005):
+ * Column schema (append-only - never reorder or remove columns per ADR-005):
  * <pre>
  * timestamp_ms,elapsed_s,p50_ms,p95_ms,p99_ms,p999_ms,throughput_rps,error_count,total_requests
  * </pre>

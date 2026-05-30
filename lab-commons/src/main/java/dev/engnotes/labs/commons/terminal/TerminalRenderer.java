@@ -24,9 +24,9 @@ import java.io.PrintStream;
  * <p>
  * Two modes are selected automatically:
  * <ul>
- *   <li><b>TTY mode</b> — ANSI escape codes keep a live percentile table updating in-place.
+ *   <li><b>TTY mode</b> - ANSI escape codes keep a live percentile table updating in-place.
  *       Detected when stdout is a real terminal ({@code System.console() != null}).</li>
- *   <li><b>Streaming mode</b> — One line per snapshot, no escape codes. Used in CI and
+ *   <li><b>Streaming mode</b> - One line per snapshot, no escape codes. Used in CI and
  *       when stdout is piped or redirected.</li>
  * </ul>
  * Not thread-safe. Call {@link #render(PercentileSnapshot, long, long)} from a single

@@ -1,11 +1,11 @@
 # latency-lab
 
-**Series 1 — Tail Latency & System Behavior**
+**Series 1 - Tail Latency & System Behavior**
 
 Six experiments that show how latency distributions, queueing dynamics, and measurement errors
 shape the reliability of real production systems.
 
-All experiments run from the repo root via Gradle tasks — no shell scripts required.
+All experiments run from the repo root via Gradle tasks - no shell scripts required.
 Topic tasks are the stable API; `runPostN` tasks are compatibility aliases for article-order references.
 Each run writes CSV files, PNG charts, a per-run `manifest.json`, and a self-contained
 CSV/manifest `report.html` that opens directly from `file://`.
@@ -15,7 +15,7 @@ CSV/manifest `report.html` that opens directly from `file://`.
 ## Prerequisites
 
 - Java 25 (JDK 25+)
-- Gradle (wrapper included — `./gradlew`)
+- Gradle (wrapper included - `./gradlew`)
 
 ---
 
@@ -52,7 +52,7 @@ p99 amplification factor: 17.6x
 ```
 
 The baseline p99 is 34ms in the final deterministic snapshot. After fan-out, a 1% tail per downstream service compounds:
-`P(at least one of 5 hits tail) = 1 - (1-0.01)^5 ≈ 4.9%` — which means the p99 of the
+`P(at least one of 5 hits tail) = 1 - (1-0.01)^5 ≈ 4.9%` - which means the p99 of the
 top-level request absorbs what was previously only the p95 of each downstream.
 
 ### Output files
@@ -63,8 +63,8 @@ All files land in `--output-dir` (default `./results`):
 |---|---|
 | `post1-baseline.csv` | ADR-005 snapshot rows for the normal distribution scenario |
 | `post1-tail-amplification.csv` | ADR-005 snapshot rows for the fan-out scenario |
-| `post1-baseline.png` | p50 / p99 / p99.9 over time — normal scenario |
-| `post1-tail-amplification.png` | p50 / p99 / p99.9 over time — fan-out scenario |
+| `post1-baseline.png` | p50 / p99 / p99.9 over time - normal scenario |
+| `post1-tail-amplification.png` | p50 / p99 / p99.9 over time - fan-out scenario |
 | `post1-comparison.png` | Overlay: Normal p99 vs Fan-Out p99 on one chart |
 | `manifest.json` | Run receipt: flags, runtime, CSV SHA-256 values, golden-match status |
 | `report.html` | Self-contained HTML report with embedded CSV data |
@@ -75,7 +75,7 @@ All files land in `--output-dir` (default `./results`):
 timestamp_ms,elapsed_s,p50_ms,p95_ms,p99_ms,p999_ms,throughput_rps,error_count,total_requests
 ```
 
-Columns are append-only — never reordered or removed.
+Columns are append-only - never reordered or removed.
 
 ### Key source files
 
@@ -85,7 +85,7 @@ Columns are append-only — never reordered or removed.
 | `simulation/RequestSimulator.java` | Runs concurrent virtual clients via `ScopedRunner.fanOut` |
 | `simulation/TailAmplificationScenario.java` | Fan-out to 5 services; records max latency |
 | `charting/LatencyChartGenerator.java` | XChart PNG output |
-| `TailLatencyMain.java` | Entry point — wires CLI args, runs both scenarios, writes output |
+| `TailLatencyMain.java` | Entry point - wires CLI args, runs both scenarios, writes output |
 
 ---
 

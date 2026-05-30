@@ -45,7 +45,7 @@ public final class CoordinatedOmissionChartGenerator {
         XYChart chart = new XYChartBuilder()
                 .width(CHART_WIDTH)
                 .height(CHART_HEIGHT)
-                .title("Coordinated Omission — p99 Comparison")
+                .title("Coordinated Omission - p99 Comparison")
                 .xAxisTitle("Elapsed (seconds)")
                 .yAxisTitle("p99 Latency (ms)")
                 .build();

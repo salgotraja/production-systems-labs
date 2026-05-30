@@ -25,11 +25,11 @@ import java.util.Map;
  * <p>
  * Standard flags shared by every experiment:
  * <ul>
- *   <li>{@code --deterministic} — fixed seed + Thread.sleep delays for reproducibility</li>
- *   <li>{@code --duration}      — experiment run time (e.g. {@code 30s}, {@code 2m})</li>
- *   <li>{@code --concurrency}   — number of concurrent virtual clients</li>
- *   <li>{@code --output-dir}    — directory for CSV and PNG output</li>
- *   <li>{@code --snapshot-interval} — time between CSV snapshot rows</li>
+ *   <li>{@code --deterministic} - fixed seed + Thread.sleep delays for reproducibility</li>
+ *   <li>{@code --duration}      - experiment run time (e.g. {@code 30s}, {@code 2m})</li>
+ *   <li>{@code --concurrency}   - number of concurrent virtual clients</li>
+ *   <li>{@code --output-dir}    - directory for CSV and PNG output</li>
+ *   <li>{@code --snapshot-interval} - time between CSV snapshot rows</li>
  * </ul>
  * Post-specific flags are accessed via {@link #extra(String)}.
  */

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — 2026-05-30
+## [Unreleased] - 2026-05-30
 
 ### Added
 
@@ -9,11 +9,11 @@
 - `buildSrc/` convention plugin: Java 25 toolchain, `--enable-preview` on compile + test + run tasks, UTF-8 encoding, JUnit Platform
 - `gradle/libs.versions.toml` version catalog: HdrHistogram 2.2.2, XChart 3.8.8, Resilience4j 2.2.0, JUnit 5.11.4
 - `lab-commons` module implementing the shared runtime
-  - `cli`: `CliParser` / `CliArgs` — parses the stable CLI flag contract (ADR-005)
+  - `cli`: `CliParser` / `CliArgs` - parses the stable CLI flag contract (ADR-005)
   - `histogram`: `LatencyHistogram` (thread-safe Recorder-based HdrHistogram wrapper) + `PercentileSnapshot` record
   - `csv`: `CsvSnapshotWriter` and `CsvTableReader`
-  - `terminal`: `TerminalRenderer` — TTY/streaming auto-detection with ANSI live table
-  - `concurrency`: `ScopedRunner` — thin StructuredTaskScope wrapper (`fanOut`, `hedge`, `fanOutCollectAll`) + `WastedWorkCounter`
+  - `terminal`: `TerminalRenderer` - TTY/streaming auto-detection with ANSI live table
+  - `concurrency`: `ScopedRunner` - thin StructuredTaskScope wrapper (`fanOut`, `hedge`, `fanOutCollectAll`) + `WastedWorkCounter`
   - `manifest`: per-run `manifest.json` writer
   - `report`: self-contained `report.html` writer with embedded CSV/manifest data and truth controls
 - `latency-lab` implements six experiments:

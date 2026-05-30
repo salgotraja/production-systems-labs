@@ -37,9 +37,9 @@ import java.util.List;
  * {@code --output-dir}:
  *
  * <ol>
- *   <li><b>Baseline</b> — single service with a bimodal latency distribution (99% fast, 1% tail).
+ *   <li><b>Baseline</b> - single service with a bimodal latency distribution (99% fast, 1% tail).
  *       Shows that p50 looks healthy while p99 is already elevated.</li>
- *   <li><b>Tail Amplification</b> — same service calls 5 downstream dependencies in parallel.
+ *   <li><b>Tail Amplification</b> - same service calls 5 downstream dependencies in parallel.
  *       The top-level latency is the max of all 5, making the p99 jump dramatically.</li>
  * </ol>
  *
@@ -138,7 +138,7 @@ public final class TailLatencyMain {
 
     private static void printSnapshotTable(List<PercentileSnapshot> snapshots, CliArgs args) {
         if (snapshots.isEmpty()) {
-            System.out.println("  (no snapshots — duration too short for one interval)");
+            System.out.println("  (no snapshots - duration too short for one interval)");
             return;
         }
         // Use streaming renderer to display each snapshot line
@@ -159,12 +159,12 @@ public final class TailLatencyMain {
         LatencyChartGenerator.saveLatencyChart(
                 baseline,
                 outputDir.resolve("post1-baseline"),
-                "Normal Latency — p50 vs p99 vs p99.9");
+                "Normal Latency - p50 vs p99 vs p99.9");
 
         LatencyChartGenerator.saveLatencyChart(
                 tail,
                 outputDir.resolve("post1-tail-amplification"),
-                "Tail Amplification — p50 vs p99 vs p99.9");
+                "Tail Amplification - p50 vs p99 vs p99.9");
 
         LatencyChartGenerator.saveComparisonChart(
                 baseline,

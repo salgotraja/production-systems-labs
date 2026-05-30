@@ -23,8 +23,8 @@ import org.HdrHistogram.Recorder;
  * <p>
  * Configuration (fixed per ADR-001):
  * <ul>
- *   <li>3 significant value digits — 0.1% precision at all recorded values</li>
- *   <li>Highest trackable value: 60,000 ms (60 seconds) — values above are silently clipped</li>
+ *   <li>3 significant value digits - 0.1% precision at all recorded values</li>
+ *   <li>Highest trackable value: 60,000 ms (60 seconds) - values above are silently clipped</li>
  * </ul>
  * <p>
  * Uses {@link Recorder} for lock-free concurrent recording. Call {@link #intervalHistogram()}
@@ -46,7 +46,7 @@ public final class LatencyHistogram {
     /**
      * Records a latency value in milliseconds.
      * <p>
-     * Thread-safe — may be called from any number of Virtual Threads concurrently.
+     * Thread-safe - may be called from any number of Virtual Threads concurrently.
      * Values above 60,000 ms are silently clipped to 60,000 ms.
      *
      * @param latencyMs latency to record, in milliseconds (must be non-negative)
@@ -59,7 +59,7 @@ public final class LatencyHistogram {
      * Flips the internal accumulator and returns a snapshot histogram covering the
      * period since the last call to this method (or since construction).
      * <p>
-     * This method is NOT thread-safe with respect to other calls to itself —
+     * This method is NOT thread-safe with respect to other calls to itself -
      * call it from a single consumer/reporter thread only.
      *
      * @return interval histogram; caller owns it and may modify or discard it

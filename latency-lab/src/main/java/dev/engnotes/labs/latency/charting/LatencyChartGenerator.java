@@ -31,7 +31,7 @@ import java.util.List;
 
 /**
  * Generates XChart PNG charts from latency snapshot data.
- * All methods are static — no instances needed.
+ * All methods are static - no instances needed.
  */
 public final class LatencyChartGenerator {
 

@@ -26,13 +26,13 @@ import java.util.stream.Stream;
  * Thin wrapper around {@link StructuredTaskScope} (Java 25 finalized API).
  * <p>
  * Isolates the StructuredTaskScope API surface so that all labs are insulated from
- * future API changes — only this class needs updating if the JDK API shifts (ADR-004).
+ * future API changes - only this class needs updating if the JDK API shifts (ADR-004).
  * <p>
  * Two concurrency patterns are exposed:
  * <ul>
- *   <li>{@link #fanOut} — fork N tasks, wait for all to succeed or throw on any failure.
+ *   <li>{@link #fanOut} - fork N tasks, wait for all to succeed or throw on any failure.
  *       Used by {@code RequestSimulator} to run concurrent virtual clients.</li>
- *   <li>{@link #hedge} — fork two tasks for the same work, return whichever finishes first,
+ *   <li>{@link #hedge} - fork two tasks for the same work, return whichever finishes first,
  *       cancel the other. Used by the hedged-requests pattern in Post 3.</li>
  * </ul>
  * This class does NOT abstract executor creation. Each lab calls
@@ -47,7 +47,7 @@ public final class ScopedRunner {
      * as an ordered list. If any task fails, the remaining tasks are cancelled and the
      * first exception is rethrown wrapped in a {@link RuntimeException}.
      *
-     * @param tasks callables to fork — each runs in its own virtual thread
+     * @param tasks callables to fork - each runs in its own virtual thread
      * @param <T>   result type
      * @return results in fork order
      * @throws RuntimeException if any task fails or the current thread is interrupted
@@ -91,7 +91,7 @@ public final class ScopedRunner {
             Subtask<T> primaryTask = scope.fork(primary);
             Subtask<T> secondaryTask = scope.fork(secondary);
             T result = scope.join();
-            // Both tasks completed successfully before cancellation took effect — wasted work
+            // Both tasks completed successfully before cancellation took effect - wasted work
             if (primaryTask.state() == Subtask.State.SUCCESS
                     && secondaryTask.state() == Subtask.State.SUCCESS) {
                 wasted.increment();
@@ -116,13 +116,13 @@ public final class ScopedRunner {
     /**
      * Forks all tasks, waits for all to finish (success or failure), and returns a stream
      * of the subtasks so callers can inspect individual results. No exception is thrown on
-     * individual task failures — callers must check {@link Subtask#state()}.
+     * individual task failures - callers must check {@link Subtask#state()}.
      * <p>
      * Primarily used in Post 4 (coordinated omission demo) where we want to observe both
      * successful and failed measurements.
      */
     public static <T> Stream<Subtask<T>> fanOutCollectAll(List<Callable<T>> tasks) {
-        // awaitAll() waits for every subtask regardless of success or failure — correct for
+        // awaitAll() waits for every subtask regardless of success or failure - correct for
         // scenarios where callers need to inspect individual outcomes (Post 4 coordinated omission).
         try (var scope = StructuredTaskScope.open(StructuredTaskScope.Joiner.awaitAll())) {
             List<Subtask<T>> subtasks = new ArrayList<>(tasks.size());

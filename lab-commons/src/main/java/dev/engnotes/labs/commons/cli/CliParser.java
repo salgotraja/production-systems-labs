@@ -61,7 +61,7 @@ public final class CliParser {
                 }
                 default -> {
                     if (token.startsWith("--")) {
-                        // Post-specific flag — store as extra
+                        // Post-specific flag - store as extra
                         if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
                             i++;
                             builder.extra(token, args[i]);

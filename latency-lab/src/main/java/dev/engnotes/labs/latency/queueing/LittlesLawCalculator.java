@@ -17,7 +17,7 @@ package dev.engnotes.labs.latency.queueing;
 
 /**
  * Computes and validates Little's Law from measured queueing data.
- * All methods are static — no instances needed.
+ * All methods are static - no instances needed.
  */
 public final class LittlesLawCalculator {
 

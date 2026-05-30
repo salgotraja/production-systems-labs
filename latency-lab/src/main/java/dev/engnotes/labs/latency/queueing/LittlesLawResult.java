@@ -20,9 +20,9 @@ package dev.engnotes.labs.latency.queueing;
  *
  * <p>Little's Law: {@code L = λ × W}, where:
  * <ul>
- *   <li>{@code λ} (lambda) — steady-state throughput in requests/second</li>
- *   <li>{@code W} — mean sojourn time (wait + service) in seconds</li>
- *   <li>{@code L} — average number of requests in the system</li>
+ *   <li>{@code λ} (lambda) - steady-state throughput in requests/second</li>
+ *   <li>{@code W} - mean sojourn time (wait + service) in seconds</li>
+ *   <li>{@code L} - average number of requests in the system</li>
  * </ul>
  *
  * @param lambdaRps      measured throughput (requests per second)
