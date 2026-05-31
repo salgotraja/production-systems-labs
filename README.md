@@ -21,14 +21,14 @@ cd production-systems-labs
 
 ## Series 1 - Tail Latency & System Behavior (`latency-lab`)
 
-| Post | Topic | Gradle Task | Deterministic result |
-|------|-------|-------------|----------------------|
-| 1 | Why Average Latency Lies | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
-| 2 | Queueing Theory for Engineers | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
+| Post | Topic                                   | Gradle Task | Deterministic result |
+|------|-----------------------------------------|-------------|----------------------|
+| 1 | [Why Average Latency Lies](https://engnotes.dev/blog/tail-latency-system-behavior/part-1-why-average-latency-lies)           | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
+| 2 | Queueing Theory for Engineers           | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
 | 3 | Hedged Requests & Speculative Execution | `./gradlew :latency-lab:runHedgedRequests` | p95 hedge p99 `43.0ms`, extra load `3.7%` |
-| 4 | The Coordinated Omission Problem | `./gradlew :latency-lab:runCoordinatedOmission` | closed-loop raw p99 `10.0ms`, corrected p99 `460.0ms` |
-| 5 | Backpressure Design Patterns | `./gradlew :latency-lab:runBackpressure` | token-bucket accepted `599`, rejected `401`, p99 `10.0ms` |
-| 6 | SLO Engineering | `./gradlew :latency-lab:runSloPolicy` | bulkhead SLI `99.60%`, worst burn `1.00x` |
+| 4 | The Coordinated Omission Problem        | `./gradlew :latency-lab:runCoordinatedOmission` | closed-loop raw p99 `10.0ms`, corrected p99 `460.0ms` |
+| 5 | Backpressure Design Patterns            | `./gradlew :latency-lab:runBackpressure` | token-bucket accepted `599`, rejected `401`, p99 `10.0ms` |
+| 6 | SLO Engineering                         | `./gradlew :latency-lab:runSloPolicy` | bulkhead SLI `99.60%`, worst burn `1.00x` |
 
 ### Standard Flags (all experiments)
 
