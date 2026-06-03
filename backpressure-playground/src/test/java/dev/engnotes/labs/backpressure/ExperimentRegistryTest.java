@@ -29,10 +29,12 @@ class ExperimentRegistryTest {
     @Test
     void definesTheReleasedSeriesTwoExperimentSet() {
         Set<String> ids = new HashSet<>();
+        Set<Integer> postNumbers = new HashSet<>();
         for (ExperimentDefinition experiment : ExperimentRegistry.all()) {
             assertTrue(ids.add(experiment.id()), "duplicate id: " + experiment);
+            assertTrue(postNumbers.add(experiment.postNumber()), "duplicate post number: " + experiment);
         }
-        assertEquals(Set.of("load-collapse"), ids);
+        assertEquals(Set.of("load-collapse", "admission-control"), ids);
     }
 
     @Test

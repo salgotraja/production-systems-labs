@@ -1,0 +1,15 @@
+mode,offered_rps,goodput_rps,reject_pct,p99_ms
+no-control,50.0,50.0,0.0,10.0
+no-control,75.2,75.2,0.0,10.0
+no-control,100.0,100.0,0.0,10.0
+no-control,125.0,19.2,0.0,1246.0
+no-control,150.0,11.6,0.0,2483.0
+no-control,200.0,7.8,0.0,4955.0
+no-control,300.2,5.8,0.0,9911.0
+admission-limited,50.0,50.0,0.0,10.0
+admission-limited,75.2,75.2,0.0,10.0
+admission-limited,100.0,100.0,0.0,10.0
+admission-limited,125.0,103.8,17.0,200.0
+admission-limited,150.0,103.8,30.8,200.0
+admission-limited,200.0,103.8,48.1,200.0
+admission-limited,300.2,103.8,65.4,200.0

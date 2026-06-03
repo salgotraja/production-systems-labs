@@ -4,7 +4,21 @@
 
 ### Added
 
-**Series 2: Backpressure & Load Control**
+**Series 2: Backpressure & Load Control - Post 2**
+
+- Post 2 "Admission Control Design" in `backpressure-playground`
+  - `admission`: `AdmissionSimulator` - single-server FIFO fronted by a concurrency limit
+    (fail-fast reject); the antidote to Post 1's collapse
+  - `admission`: `DemandCurve` (deterministic bursty/constant offered-load schedule),
+    `AdmissionScenario` (limit sweep + offered-load plateau), `AdmissionPointResult`,
+    `AdmissionRunResult`
+  - `charting`: `AdmissionChartGenerator` - sweet-spot (goodput/utilization vs limit) and
+    plateau-restored (goodput vs offered load) PNGs
+  - `AdmissionControlMain` topic entry point; Gradle task `runAdmissionControl` (+ `runPost2` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post2/`; simulator-invariant, golden, and registry tests
+  - CI generates + uploads the Post 2 report alongside Post 1
+
+**Series 2: Backpressure & Load Control - Post 1**
 
 - `backpressure-playground` module with Post 1 "Why Systems Collapse Under Load"
   - `collapse`: `CollapseSimulator` - deterministic discrete-event model of an unmanaged

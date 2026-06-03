@@ -49,7 +49,9 @@ jobs:
           name: latency-lab-reports-${{ matrix.artifact-suffix }}
           path: build/reports/latency-lab
       - name: Generate backpressure-playground reports
-        run: ${{ matrix.gradlew }} :backpressure-playground:runLoadCollapse --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/backpressure-playground/bp-post1"
+        run: |
+          ${{ matrix.gradlew }} :backpressure-playground:runLoadCollapse --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/backpressure-playground/bp-post1"
+          ${{ matrix.gradlew }} :backpressure-playground:runAdmissionControl --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/backpressure-playground/bp-post2"
       - name: Upload backpressure-playground reports
         uses: actions/upload-artifact@v4
         with:

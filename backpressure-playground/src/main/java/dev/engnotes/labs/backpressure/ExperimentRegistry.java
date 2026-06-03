@@ -33,7 +33,16 @@ public final class ExperimentRegistry {
             Path.of("build", "bp-post1"),
             Path.of("golden", "bp-post1"));
 
-    private static final List<ExperimentDefinition> ALL = List.of(LOAD_COLLAPSE);
+    public static final ExperimentDefinition ADMISSION_CONTROL = new ExperimentDefinition(
+            "admission-control",
+            2,
+            "Admission Control Design",
+            "runAdmissionControl",
+            AdmissionControlMain.class,
+            Path.of("build", "bp-post2"),
+            Path.of("golden", "bp-post2"));
+
+    private static final List<ExperimentDefinition> ALL = List.of(LOAD_COLLAPSE, ADMISSION_CONTROL);
 
     private ExperimentRegistry() {}
 

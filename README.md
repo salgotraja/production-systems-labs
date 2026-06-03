@@ -51,14 +51,16 @@ Every run writes `manifest.json` and `report.html` next to the CSV/PNG outputs. 
 | Post | Topic | Gradle Task | Deterministic result |
 |------|-------|-------------|----------------------|
 | 1 | Why Systems Collapse Under Load | `./gradlew :backpressure-playground:runLoadCollapse` | capacity `100` rps; goodput collapses to `7.8` rps at 200 rps offered; retries push effective load to `716.6` rps |
+| 2 | Admission Control Design | `./gradlew :backpressure-playground:runAdmissionControl` | sweet spot at limit `20` (Little's Law) goodput `99.8` rps; admission control holds `~100` rps where no control collapses to `7.8` |
 
 ```bash
 ./gradlew :backpressure-playground:runLoadCollapse -Pargs="--deterministic --duration 5s --output-dir ./results/load-collapse"
+./gradlew :backpressure-playground:runAdmissionControl -Pargs="--deterministic --duration 5s --output-dir ./results/admission-control"
 ```
 
-Series 2 golden files live under `golden/bp-post{N}/`. Post 1 emits its own sweep CSV schema
-(`mode,offered_rps,effective_rps,ideal_goodput_rps,goodput_rps,wasted_pct,p50_ms,p99_ms,avg_queue_depth`)
-rather than the per-second ADR-005 schema, because it sweeps offered-load levels instead of time.
+Series 2 golden files live under `golden/bp-post{N}/`. Series 2 posts emit their own sweep CSV
+schemas (one row per swept level) rather than the per-second ADR-005 schema, because they sweep
+offered-load or admission-limit levels instead of time.
 
 ## Repository Structure
 

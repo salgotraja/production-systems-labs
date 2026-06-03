@@ -65,6 +65,7 @@ data class ExperimentTask(
 
 val experiments = listOf(
     ExperimentTask(1, "runLoadCollapse", "Why systems collapse under load", "dev.engnotes.labs.backpressure.LoadCollapseMain"),
+    ExperimentTask(2, "runAdmissionControl", "Admission control design", "dev.engnotes.labs.backpressure.AdmissionControlMain"),
 )
 
 experiments.forEach { experiment ->

@@ -32,11 +32,20 @@ class GoldenOutputTest {
     Path tempDir;
 
     @Test
-    void deterministicRunMatchesGoldenCsv() throws Exception {
+    void loadCollapseMatchesGoldenCsv() throws Exception {
         Path outputDir = tempDir.resolve("bp-post1");
         LoadCollapseMain.main(args(outputDir, "--duration", "5s"));
         assertCsvEquals("bp-post1/bp-post1-collapse-sweep.csv", outputDir.resolve("bp-post1-collapse-sweep.csv"));
         assertCommonArtifacts(outputDir, 1);
+    }
+
+    @Test
+    void admissionControlMatchesGoldenCsv() throws Exception {
+        Path outputDir = tempDir.resolve("bp-post2");
+        AdmissionControlMain.main(args(outputDir, "--duration", "5s"));
+        assertCsvEquals("bp-post2/bp-post2-limit-sweep.csv", outputDir.resolve("bp-post2-limit-sweep.csv"));
+        assertCsvEquals("bp-post2/bp-post2-plateau.csv", outputDir.resolve("bp-post2-plateau.csv"));
+        assertCommonArtifacts(outputDir, 2);
     }
 
     private String[] args(Path outputDir, String... extraArgs) {
