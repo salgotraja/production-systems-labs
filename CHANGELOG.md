@@ -1,5 +1,33 @@
 # Changelog
 
+## [Unreleased] - 2026-06-03
+
+### Added
+
+**Series 2: Backpressure & Load Control**
+
+- `backpressure-playground` module with Post 1 "Why Systems Collapse Under Load"
+  - `collapse`: `CollapseSimulator` - deterministic discrete-event model of an unmanaged
+    single-server service; encodes service-then-discard (the server burns a slot on work whose
+    client already gave up) and client-retry re-injection (the retry-storm death spiral)
+  - `collapse`: `CollapseScenario` (offered-load sweep, with/without retries), `LoadLevelResult`,
+    `CollapseRunResult`
+  - `charting`: `CollapseChartGenerator` - goodput collapse cliff and retry-storm amplification PNGs
+  - `LoadCollapseMain` topic entry point; Gradle task `runLoadCollapse` (+ `runPost1` alias)
+  - Module-local experiment plumbing (`ExperimentRegistry`, `ExperimentDefinition`, `PostArtifacts`,
+    `ArtifactWriteException`) keeping each lab self-contained
+- Golden CSV/PNG reference artifacts under `golden/bp-post1/` (flat per-series naming)
+- Golden CSV regression test, simulator-invariant tests, and registry tests for Series 2 Post 1
+- Deterministic CI report artifact generation + upload for `backpressure-playground`
+
+### Changed
+
+- `lab-commons` `ExperimentManifest`: added a `write(...)` overload accepting an explicit golden
+  directory so multiple series share the `golden/` root without post-number collisions; the
+  existing `golden/post{N}` behaviour is unchanged
+- `settings.gradle.kts`: included `backpressure-playground`
+- `README.md`: added the Series 2 overview and repository-structure entry
+
 ## [Unreleased] - 2026-05-30
 
 ### Added

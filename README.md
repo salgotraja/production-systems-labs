@@ -46,16 +46,31 @@ cd production-systems-labs
 
 Every run writes `manifest.json` and `report.html` next to the CSV/PNG outputs. The report is self-contained HTML: it embeds the manifest and CSV data, opens directly from `file://`, has no server or external JavaScript dependency, and exposes truth controls for measurement mode, hedging state, and metric view when the data supports them.
 
+## Series 2 - Backpressure & Load Control (`backpressure-playground`)
+
+| Post | Topic | Gradle Task | Deterministic result |
+|------|-------|-------------|----------------------|
+| 1 | Why Systems Collapse Under Load | `./gradlew :backpressure-playground:runLoadCollapse` | capacity `100` rps; goodput collapses to `7.8` rps at 200 rps offered; retries push effective load to `716.6` rps |
+
+```bash
+./gradlew :backpressure-playground:runLoadCollapse -Pargs="--deterministic --duration 5s --output-dir ./results/load-collapse"
+```
+
+Series 2 golden files live under `golden/bp-post{N}/`. Post 1 emits its own sweep CSV schema
+(`mode,offered_rps,effective_rps,ideal_goodput_rps,goodput_rps,wasted_pct,p50_ms,p99_ms,avg_queue_depth`)
+rather than the per-second ADR-005 schema, because it sweeps offered-load levels instead of time.
+
 ## Repository Structure
 
 ```
 production-systems-labs/
 ├── build.gradle.kts          # root: group/version only
-├── settings.gradle.kts       # includes lab-commons + latency-lab
+├── settings.gradle.kts       # includes lab-commons + latency-lab + backpressure-playground
 ├── gradle/libs.versions.toml # pinned dependency versions
 ├── buildSrc/                 # shared Java 25 convention plugin
 ├── lab-commons/              # shared: histogram, csv, cli, terminal, concurrency
 ├── latency-lab/              # Series 1 (6 posts)
+├── backpressure-playground/  # Series 2 (Post 1 released)
 ├── golden/                   # reference output for golden file tests
 └── .github/workflows/        # build + golden CSV regression tests
 ```
