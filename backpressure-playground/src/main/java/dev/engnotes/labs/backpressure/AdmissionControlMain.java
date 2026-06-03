@@ -180,6 +180,8 @@ public final class AdmissionControlMain {
         System.out.println("  Lesson: size the admission limit to capacity x deadline. Too low rejects");
         System.out.println("          burst traffic the valley could absorb; too high lets the backlog");
         System.out.println("          grow until waits exceed the deadline and goodput collapses.");
+        System.out.println("  Note:   synthetic lab model; the sweet-spot limit and numbers vary in");
+        System.out.println("          production, but the design rule (size to capacity x deadline) holds.");
         System.out.println("=================================================");
     }
 

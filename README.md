@@ -62,6 +62,12 @@ Series 2 golden files live under `golden/bp-post{N}/`. Series 2 posts emit their
 schemas (one row per swept level) rather than the per-second ADR-005 schema, because they sweep
 offered-load or admission-limit levels instead of time.
 
+These are deterministic **synthetic lab experiments**: the numbers are real model output (golden-
+tested), but the models are intentionally simple (single server, fixed service time, deterministic
+arrivals). The absolute figures are artifacts of the chosen constants; what transfers to production
+is the mechanism, not the numbers. See the [module README](backpressure-playground/README.md) for
+the full caveat.
+
 ## Repository Structure
 
 ```

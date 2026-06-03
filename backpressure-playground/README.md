@@ -13,6 +13,34 @@ self-contained `report.html` that opens directly from `file://`.
 
 ---
 
+## These are lab experiments, not production measurements
+
+Every number in this module is produced by actually running the deterministic models here -
+nothing is hand-written, curated, or extrapolated, and the golden-file tests re-run the models
+and assert the output byte-for-byte. The data is real model output.
+
+But the models are deliberately simple and **synthetic**, built so one mechanism is visible at a
+time and so results are perfectly reproducible:
+
+- a single server with a fixed service time (not a real multi-core service),
+- deterministic arrivals - a fixed rate or a fixed bursty curve (not real stochastic traffic),
+- a fixed client deadline; no network, no GC pauses, no downstream dependencies.
+
+So treat the absolute figures (rps, ms, percentages, the exact sweet-spot limit) as artifacts of
+these chosen constants, **not** as predictions for any real service. What transfers to production
+is the **shape and the mechanism**, not the numbers:
+
+- an unmanaged queue collapses goodput *below* capacity instead of plateauing at it (Post 1);
+- retries amplify an overload without adding goodput (Post 1);
+- a concurrency limit sized to roughly `capacity x deadline` restores the plateau (Post 2).
+
+In a real system the collapse point, the best limit, and the latencies will all differ with
+traffic variance, service-time distribution, core count, and downstream behaviour - but the
+failure modes and the fix are the same. `--deterministic` exists so the tests can assert
+reproducibility; it is not a claim that production is deterministic.
+
+---
+
 ## Prerequisites
 
 - Java 25 (JDK 25+)

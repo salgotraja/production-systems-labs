@@ -163,6 +163,8 @@ public final class LoadCollapseMain {
         }
         System.out.println("  Lesson: without admission control, overload collapses goodput below");
         System.out.println("          capacity; retries turn the collapse into a death spiral.");
+        System.out.println("  Note:   synthetic lab model; production numbers vary with real traffic,");
+        System.out.println("          but the collapse mechanism is the same.");
         System.out.println("=================================================");
     }
 
