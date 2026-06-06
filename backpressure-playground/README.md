@@ -34,7 +34,9 @@ is the **shape and the mechanism**, not the numbers:
 - retries amplify an overload without adding goodput (Post 1);
 - a concurrency limit sized to roughly `capacity x deadline` restores the plateau (Post 2);
 - token and leaky buckets bound the same average rate - the design choice is where the burst
-  and the wait land: downstream of a policer, at the gate of a shaper (Post 3).
+  and the wait land: downstream of a policer, at the gate of a shaper (Post 3);
+- every shedding policy restores goodput under overload - the design choice is who gets served
+  and how long the doomed wait before they find out (Post 4).
 
 In a real system the collapse point, the best limit, and the latencies will all differ with
 traffic variance, service-time distribution, core count, and downstream behaviour - but the
@@ -281,3 +283,84 @@ could still absorb, is the price of bounding the downstream rate.
 | `shaping/ShapingScenario.java` | The burst sweep and the downstream-rate time series |
 | `charting/ShapingChartGenerator.java` | XChart PNGs for the shaping and burst-sweep charts |
 | `TokenVsLeakyMain.java` | Entry point: CSVs, charts, manifest, report |
+
+---
+
+## Post 4: Load Shedding Strategies
+
+**TL;DR**
+- Under sustained overload, every policy that sheds restores goodput to capacity - the choice is
+  *who gets served* and *how long the doomed wait*
+- The fingerprints: `tail-drop` fast-fails at the door (shed wait 0ms) but needs its bound sized
+  to `capacity x deadline`; `expire` discards doomed work free at dequeue (no knob, but the shed
+  wait the client endures is the full deadline); `lifo` serves the freshest through any backlog
+  (p99 of served stays ~10ms) but never tells the starved
+- The burst hangover is the killer: without shedding, FIFO keeps serving stale backlog long
+  after the spike ended - the system stays slow when the load is already gone
+
+Posts 2-3 decided how much to admit and how to deliver it; Post 4 decides which work to abandon.
+
+### Run it
+
+```bash
+./gradlew :backpressure-playground:runLoadShedding -Pargs="--deterministic --duration 5s --output-dir ./results/load-shedding"
+```
+
+Like the other Series 2 posts, the model is a fully synthetic, single-threaded discrete-event
+simulation, so output is byte-for-byte reproducible. `--concurrency` and `--snapshot-interval`
+are accepted for CLI consistency but do not affect this experiment.
+
+### What it models
+
+The same fixed-capacity server (mu = 100 rps, 200ms deadline) behind an explicit queue, with
+four dequeue/door policies: `fifo` (unbounded, no shedding - the Post 1 baseline), `tail-drop`
+(FIFO with in-system occupancy capped at the deadline budget of 20), `expire` (FIFO, but work
+that can no longer make its deadline is discarded free at dequeue), and `lifo` (newest-first;
+the old are shed by starvation). No post-window drain: whatever is still queued when the run
+window closes counts as shed, so the shares always sum over the same arrivals.
+
+1. **The sweep** - offered load swept over constant levels per policy.
+2. **The hangover (the hero)** - a repeating burst curve (80 rps valleys, 600 rps spikes for
+   500ms); the p99 of completed work is sampled per 100ms window.
+
+### Expected golden output (deterministic, 5s)
+
+Sweep at 2x capacity (200 rps offered):
+
+| Policy | Goodput | Shed% | Served-late% | p99 served | Shed wait p50 | Wasted% |
+|---|--------:|------:|-------------:|-----------:|--------------:|--------:|
+| fifo | 7.8 | 50.0 | 46.1 | 2481 | 2475 | 92.2 |
+| tail-drop | 100.0 | 50.0 | 0.0 | 200 | **0** | 0.0 |
+| expire | 100.0 | 50.0 | 0.0 | 200 | **195** | 0.0 |
+| lifo | 100.0 | 50.0 | 0.0 | **10** | **2497** | 0.0 |
+
+Goodput and shed% are identical for the three real policies - they cannot be ranked on how much
+they shed, only on who they serve and how the shed find out. `tail-drop` and `expire` serve the
+same near-deadline work (their hangover lines coincide); they differ in where the shed cost
+lands: tail-drop rejects in 0ms at the door but needs its bound sized to `capacity x deadline`,
+expire needs no knob (the deadline is the knob) but holds doomed requests ~the full deadline
+before discarding. `lifo` serves fresh ~10ms work through any backlog and the starved are never
+told (their shed wait is the rest of the window). In the hangover chart, `fifo`'s p99 climbs
+monotonically across spikes (the backlog compounds - it never recovers inside the run), while
+`lifo` inverts: fresh during the spike, then serving bottom-of-stack zombies during the valleys
+- pure LIFO needs an expiry check in practice.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `bp-post4-shed-sweep.csv` | One row per (policy, offered load) - golden contract |
+| `bp-post4-hangover.csv` | p99-of-served per 100ms window per policy - golden contract |
+| `bp-post4-hangover.png` | The burst hangover over time (log axis) |
+| `bp-post4-shed-sweep.png` | p99-of-served vs offered load per policy (log axis) |
+| `manifest.json` / `report.html` | Run receipt and self-contained HTML report |
+
+### Key source files
+
+| File | Role |
+|---|---|
+| `shedding/ShedPolicy.java` | The four policies: pick order + door bound + dequeue expiry |
+| `shedding/ShedSimulator.java` | Event-loop model (dequeue policy breaks the closed-form pass) |
+| `shedding/SheddingScenario.java` | The offered-load sweep and the burst-hangover time series |
+| `charting/SheddingChartGenerator.java` | XChart PNGs for the hangover and sweep charts |
+| `LoadSheddingMain.java` | Entry point: CSVs, charts, manifest, report |

@@ -51,8 +51,17 @@ public final class ExperimentRegistry {
             Path.of("build", "bp-post3"),
             Path.of("golden", "bp-post3"));
 
+    public static final ExperimentDefinition LOAD_SHEDDING = new ExperimentDefinition(
+            "load-shedding",
+            4,
+            "Load Shedding Strategies",
+            "runLoadShedding",
+            LoadSheddingMain.class,
+            Path.of("build", "bp-post4"),
+            Path.of("golden", "bp-post4"));
+
     private static final List<ExperimentDefinition> ALL =
-            List.of(LOAD_COLLAPSE, ADMISSION_CONTROL, TOKEN_VS_LEAKY);
+            List.of(LOAD_COLLAPSE, ADMISSION_CONTROL, TOKEN_VS_LEAKY, LOAD_SHEDDING);
 
     private ExperimentRegistry() {}
 

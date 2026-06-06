@@ -67,6 +67,7 @@ val experiments = listOf(
     ExperimentTask(1, "runLoadCollapse", "Why systems collapse under load", "dev.engnotes.labs.backpressure.LoadCollapseMain"),
     ExperimentTask(2, "runAdmissionControl", "Admission control design", "dev.engnotes.labs.backpressure.AdmissionControlMain"),
     ExperimentTask(3, "runTokenVsLeaky", "Token bucket vs leaky bucket", "dev.engnotes.labs.backpressure.TokenVsLeakyMain"),
+    ExperimentTask(4, "runLoadShedding", "Load shedding strategies", "dev.engnotes.labs.backpressure.LoadSheddingMain"),
 )
 
 experiments.forEach { experiment ->

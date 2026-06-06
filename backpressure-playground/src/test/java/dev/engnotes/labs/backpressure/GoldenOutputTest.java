@@ -57,6 +57,15 @@ class GoldenOutputTest {
         assertCommonArtifacts(outputDir, 3);
     }
 
+    @Test
+    void loadSheddingMatchesGoldenCsv() throws Exception {
+        Path outputDir = tempDir.resolve("bp-post4");
+        LoadSheddingMain.main(args(outputDir, "--duration", "5s"));
+        assertCsvEquals("bp-post4/bp-post4-shed-sweep.csv", outputDir.resolve("bp-post4-shed-sweep.csv"));
+        assertCsvEquals("bp-post4/bp-post4-hangover.csv", outputDir.resolve("bp-post4-hangover.csv"));
+        assertCommonArtifacts(outputDir, 4);
+    }
+
     private String[] args(Path outputDir, String... extraArgs) {
         String[] args = new String[extraArgs.length + 3];
         args[0] = "--deterministic";

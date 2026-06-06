@@ -4,6 +4,21 @@
 
 ### Added
 
+**Series 2: Backpressure & Load Control - Post 4**
+
+- Post 4 "Load Shedding Strategies" in `backpressure-playground`
+  - `shedding`: `ShedPolicy` - the four policies as pick order + door bound + dequeue expiry
+    (fifo / tail-drop / expire / lifo)
+  - `shedding`: `ShedSimulator` - deterministic event-loop model (dequeue policies break the
+    closed-form forward pass); splits outcomes into goodput / served-late / shed, p99-of-served,
+    and the shed-wait fast/slow/never spectrum; no post-window drain
+  - `shedding`: `SheddingScenario` (offered-load sweep + burst-hangover time series),
+    `ShedPointResult`, `ShedWindowSample`, `ShedRunResult`
+  - `charting`: `SheddingChartGenerator` - burst-hangover and p99-of-served sweep PNGs (log axis)
+  - `LoadSheddingMain` topic entry point; Gradle task `runLoadShedding` (+ `runPost4` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post4/`; policy-invariant, golden, and registry tests
+  - CI generates + uploads the Post 4 report alongside Posts 1-3
+
 **Series 2: Backpressure & Load Control - Post 3**
 
 - Post 3 "Token Bucket vs Leaky Bucket" in `backpressure-playground`
