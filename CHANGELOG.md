@@ -34,6 +34,15 @@
   - Golden CSV/PNG artifacts under `golden/bp-post3/`; gate-invariant, golden, and registry tests
   - CI generates + uploads the Post 3 report alongside Posts 1-2
 
+### Changed
+
+- `backpressure-playground/README.md`: Post 3 and Post 4 sections with deterministic expected
+  results; transferable-lessons list extended
+- `README.md`: Series 2 table rows and run commands for Posts 3-4
+- `.github/workflows/ci.yml`: Post 3 and Post 4 report generation in the
+  backpressure-playground report step
+- `.idea/gradle.xml`: registered the `backpressure-playground` module
+
 ## [Unreleased] - 2026-06-03
 
 ### Added
