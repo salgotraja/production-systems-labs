@@ -36,7 +36,10 @@ is the **shape and the mechanism**, not the numbers:
 - token and leaky buckets bound the same average rate - the design choice is where the burst
   and the wait land: downstream of a policer, at the gate of a shaper (Post 3);
 - every shedding policy restores goodput under overload - the design choice is who gets served
-  and how long the doomed wait before they find out (Post 4).
+  and how long the doomed wait before they find out (Post 4);
+- a bounded system makes served latency deadline-flat for everyone, so protecting what matters
+  is a success-rate decision: criticality-aware shedding holds the critical SLO until critical
+  traffic alone exceeds capacity, paid for in background traffic (Post 5).
 
 In a real system the collapse point, the best limit, and the latencies will all differ with
 traffic variance, service-time distribution, core count, and downstream behaviour - but the
@@ -364,3 +367,89 @@ monotonically across spikes (the backlog compounds - it never recovers inside th
 | `shedding/SheddingScenario.java` | The offered-load sweep and the burst-hangover time series |
 | `charting/SheddingChartGenerator.java` | XChart PNGs for the hangover and sweep charts |
 | `LoadSheddingMain.java` | Entry point: CSVs, charts, manifest, report |
+
+---
+
+## Post 5: Bounded Systems Architecture + SLO-Driven Load Control
+
+**TL;DR**
+- The series capstone: assemble the bounded system (Post 2's door bound + Post 4's dequeue
+  expiry) and add the value dimension - two criticality classes through a class-blind vs
+  criticality-aware door
+- The bounded architecture makes served latency deadline-flat for *everyone* - a latency SLO
+  cannot tell the policies apart; the battleground is the **success-rate SLO** (>= 99% of
+  critical arrivals complete within deadline)
+- Blind shedding degrades the classes in lockstep, losing the critical SLO at the first
+  overload; a priority door (critical evicts the newest queued background) holds the critical
+  SLO at ~100% until the protection ceiling `capacity / critical_share = 400 rps`, where
+  critical traffic alone reaches capacity - the background class pays the bill
+
+Posts 2-4 decided how much, how delivered, and which work; Post 5 decides *whose* work survives.
+
+### Run it
+
+```bash
+./gradlew :backpressure-playground:runSloLoadControl -Pargs="--deterministic --duration 5s --output-dir ./results/slo-load-control"
+```
+
+Like the other Series 2 posts, the model is a fully synthetic, single-threaded discrete-event
+simulation, so output is byte-for-byte reproducible. `--concurrency` and `--snapshot-interval`
+are accepted for CLI consistency but do not affect this experiment.
+
+### What it models
+
+The same fixed-capacity server (mu = 100 rps, 200ms deadline) behind the assembled bounded
+system: in-system door bound 20 plus dequeue expiry. Arrivals are classified critical (25%) or
+background by a fixed-seed pseudo-random interleave - deterministic and golden-stable, but
+uncorrelated with the service cadence (an evenly-spaced every-4th pattern phase-locks with the
+door at harmonic offered rates and corrupts the per-class split). Success is scored for
+arrivals with a full deadline left inside the run window, so the rates reflect steady state
+rather than end-of-window measurement artifacts.
+
+1. **The protection sweep** - offered load swept across the 400 rps protection ceiling per policy.
+2. **The burst (the hero)** - repeating spikes (80 rps valleys, 360 rps for 500ms - spike
+   critical 90 rps stays under capacity, so priority *can* hold); per-class success per 100ms
+   arrival window.
+
+### Expected golden output (deterministic, 5s)
+
+Protection sweep (capacity 100, critical share ~25%, SLO >= 99% success):
+
+| Policy | Offered | Critical | Crit ok% | Bg ok% | Crit p99 | SLO met |
+|---|--------:|---------:|---------:|-------:|---------:|:-------:|
+| blind | 200.2 | 49.4 | 51.1 | 52.3 | 200 | no |
+| blind | 300.0 | 74.2 | 32.3 | 35.4 | 200 | no |
+| blind | 400.2 | 99.8 | 25.3 | 26.3 | 200 | no |
+| priority | 200.2 | 49.4 | **100.0** | 36.3 | 200 | **yes** |
+| priority | 300.0 | 74.2 | **99.7** | 12.9 | 200 | **yes** |
+| priority | 400.2 | 99.8 | 93.3 | 3.5 | 200 | no |
+| priority | 500.2 | 124.0 | 80.8 | 1.1 | 200 | no |
+
+Read the blind rows first: critical and background degrade in lockstep (51 vs 52, 32 vs 35) -
+shedding without class awareness spreads the pain evenly, and the critical SLO is gone at the
+first overload. The priority rows hold critical at ~100% while background pays (36 -> 1), up to
+the ceiling: at 400 rps total, critical alone is 99.8 rps = capacity, and protection cracks
+(93.3%); at 500 rps it is arithmetic-impossible (80.8 ~= 100/124). And note the p99 column:
+deadline-flat at 200 for both policies at every overloaded point - latency monitoring alone
+would never see the difference. In the burst chart, priority's critical line stays pinned at
+100% through every spike while blind's dives to 0.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `bp-post5-protection.csv` | One row per (policy, offered load) with per-class outcomes - golden contract |
+| `bp-post5-slo-burst.csv` | Per-class success per 100ms window, blind vs priority - golden contract |
+| `bp-post5-slo-burst.png` | Critical success through bursts: blind dives, priority holds |
+| `bp-post5-protection.png` | Critical success vs offered load with the 400 rps ceiling |
+| `manifest.json` / `report.html` | Run receipt and self-contained HTML report |
+
+### Key source files
+
+| File | Role |
+|---|---|
+| `slocontrol/ClassPolicy.java` | Blind vs priority (critical evicts newest queued background) |
+| `slocontrol/SloControlSimulator.java` | Bounded system event loop, two classes, success-rate scoring |
+| `slocontrol/SloControlScenario.java` | The protection sweep and the burst time series |
+| `charting/SloControlChartGenerator.java` | XChart PNGs for the burst and protection charts |
+| `SloLoadControlMain.java` | Entry point: CSVs, charts, manifest, report |

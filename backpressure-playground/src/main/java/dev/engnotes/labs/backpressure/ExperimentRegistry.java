@@ -60,8 +60,17 @@ public final class ExperimentRegistry {
             Path.of("build", "bp-post4"),
             Path.of("golden", "bp-post4"));
 
+    public static final ExperimentDefinition SLO_LOAD_CONTROL = new ExperimentDefinition(
+            "slo-load-control",
+            5,
+            "Bounded Systems + SLO-Driven Load Control",
+            "runSloLoadControl",
+            SloLoadControlMain.class,
+            Path.of("build", "bp-post5"),
+            Path.of("golden", "bp-post5"));
+
     private static final List<ExperimentDefinition> ALL =
-            List.of(LOAD_COLLAPSE, ADMISSION_CONTROL, TOKEN_VS_LEAKY, LOAD_SHEDDING);
+            List.of(LOAD_COLLAPSE, ADMISSION_CONTROL, TOKEN_VS_LEAKY, LOAD_SHEDDING, SLO_LOAD_CONTROL);
 
     private ExperimentRegistry() {}
 

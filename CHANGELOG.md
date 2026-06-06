@@ -4,6 +4,23 @@
 
 ### Added
 
+**Series 2: Backpressure & Load Control - Post 5 (series complete)**
+
+- Post 5 "Bounded Systems Architecture + SLO-Driven Load Control" in `backpressure-playground`
+  - `slocontrol`: `ClassPolicy` - blind vs priority (a critical arrival evicts the newest
+    queued background request when the bounded system is full)
+  - `slocontrol`: `SloControlSimulator` - the assembled bounded system (Post 2 door bound +
+    Post 4 dequeue expiry) serving two criticality classes; success-rate SLO scoring (served
+    latency is deadline-flat by construction, so a latency SLO cannot tell the policies apart);
+    fixed-seed pseudo-random class interleave (periodic patterns phase-lock with the service
+    cadence); scoring window excludes arrivals without a full deadline left
+  - `slocontrol`: `SloControlScenario` (protection sweep across the 400 rps ceiling + burst
+    time series), `SloPointResult`, `SloWindowSample`, `SloRunResult`
+  - `charting`: `SloControlChartGenerator` - burst hero chart and protection-ceiling sweep
+  - `SloLoadControlMain` topic entry point; Gradle task `runSloLoadControl` (+ `runPost5` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post5/`; capstone-invariant, golden, and registry tests
+  - CI generates + uploads the Post 5 report alongside Posts 1-4
+
 **Series 2: Backpressure & Load Control - Post 4**
 
 - Post 4 "Load Shedding Strategies" in `backpressure-playground`
@@ -36,10 +53,10 @@
 
 ### Changed
 
-- `backpressure-playground/README.md`: Post 3 and Post 4 sections with deterministic expected
+- `backpressure-playground/README.md`: Posts 3-5 sections with deterministic expected
   results; transferable-lessons list extended
-- `README.md`: Series 2 table rows and run commands for Posts 3-4
-- `.github/workflows/ci.yml`: Post 3 and Post 4 report generation in the
+- `README.md`: Series 2 table rows and run commands for Posts 3-5
+- `.github/workflows/ci.yml`: Posts 3-5 report generation in the
   backpressure-playground report step
 - `.idea/gradle.xml`: registered the `backpressure-playground` module
 

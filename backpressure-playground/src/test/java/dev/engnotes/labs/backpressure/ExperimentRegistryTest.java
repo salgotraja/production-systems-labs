@@ -34,7 +34,8 @@ class ExperimentRegistryTest {
             assertTrue(ids.add(experiment.id()), "duplicate id: " + experiment);
             assertTrue(postNumbers.add(experiment.postNumber()), "duplicate post number: " + experiment);
         }
-        assertEquals(Set.of("load-collapse", "admission-control", "token-vs-leaky", "load-shedding"), ids);
+        assertEquals(Set.of("load-collapse", "admission-control", "token-vs-leaky", "load-shedding",
+                "slo-load-control"), ids);
     }
 
     @Test

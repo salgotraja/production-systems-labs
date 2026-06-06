@@ -66,6 +66,15 @@ class GoldenOutputTest {
         assertCommonArtifacts(outputDir, 4);
     }
 
+    @Test
+    void sloLoadControlMatchesGoldenCsv() throws Exception {
+        Path outputDir = tempDir.resolve("bp-post5");
+        SloLoadControlMain.main(args(outputDir, "--duration", "5s"));
+        assertCsvEquals("bp-post5/bp-post5-protection.csv", outputDir.resolve("bp-post5-protection.csv"));
+        assertCsvEquals("bp-post5/bp-post5-slo-burst.csv", outputDir.resolve("bp-post5-slo-burst.csv"));
+        assertCommonArtifacts(outputDir, 5);
+    }
+
     private String[] args(Path outputDir, String... extraArgs) {
         String[] args = new String[extraArgs.length + 3];
         args[0] = "--deterministic";
