@@ -52,15 +52,17 @@ Every run writes `manifest.json` and `report.html` next to the CSV/PNG outputs. 
 |------|-------|-------------|----------------------|
 | 1 | Why Systems Collapse Under Load | `./gradlew :backpressure-playground:runLoadCollapse` | capacity `100` rps; goodput collapses to `7.8` rps at 200 rps offered; retries push effective load to `716.6` rps |
 | 2 | Admission Control Design | `./gradlew :backpressure-playground:runAdmissionControl` | sweet spot at limit `20` (Little's Law) goodput `99.8` rps; admission control holds `~100` rps where no control collapses to `7.8` |
+| 3 | Token Bucket vs Leaky Bucket | `./gradlew :backpressure-playground:runTokenVsLeaky` | same goodput from both gates at every burst size; at budget `20` the p99 wait is `190` ms at the server (token) vs `190` ms at the gate (leaky); downstream peak `290` vs `100` rps |
 
 ```bash
 ./gradlew :backpressure-playground:runLoadCollapse -Pargs="--deterministic --duration 5s --output-dir ./results/load-collapse"
 ./gradlew :backpressure-playground:runAdmissionControl -Pargs="--deterministic --duration 5s --output-dir ./results/admission-control"
+./gradlew :backpressure-playground:runTokenVsLeaky -Pargs="--deterministic --duration 5s --output-dir ./results/token-vs-leaky"
 ```
 
 Series 2 golden files live under `golden/bp-post{N}/`. Series 2 posts emit their own sweep CSV
 schemas (one row per swept level) rather than the per-second ADR-005 schema, because they sweep
-offered-load or admission-limit levels instead of time.
+offered-load, admission-limit, or burst-dimension levels instead of time.
 
 These are deterministic **synthetic lab experiments**: the numbers are real model output (golden-
 tested), but the models are intentionally simple (single server, fixed service time, deterministic
@@ -78,7 +80,7 @@ production-systems-labs/
 ├── buildSrc/                 # shared Java 25 convention plugin
 ├── lab-commons/              # shared: histogram, csv, cli, terminal, concurrency
 ├── latency-lab/              # Series 1 (6 posts)
-├── backpressure-playground/  # Series 2 (Post 1 released)
+├── backpressure-playground/  # Series 2 (Posts 1-3)
 ├── golden/                   # reference output for golden file tests
 └── .github/workflows/        # build + golden CSV regression tests
 ```

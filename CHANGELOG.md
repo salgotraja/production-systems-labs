@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased] - 2026-06-06
+
+### Added
+
+**Series 2: Backpressure & Load Control - Post 3**
+
+- Post 3 "Token Bucket vs Leaky Bucket" in `backpressure-playground`
+  - `shaping`: `RateGate` contract plus `TokenBucketGate` (policing: banked tokens, immediate
+    release) and `LeakyBucketGate` (shaping: paced release, bounded gate queue)
+  - `shaping`: `ShapingSimulator` - gate + the Posts 1-2 single-server FIFO; splits the p99 wait
+    by where it happened (gate delay vs server wait) and tracks the peak downstream rate
+  - `shaping`: `ShapingScenario` (burst-dimension sweep + downstream-rate time series),
+    `ShapingPointResult`, `ShapingWindowSample`, `ShapingRunResult`
+  - `charting`: `ShapingChartGenerator` - policing-vs-shaping time series and peak-downstream-rate
+    sweep PNGs
+  - `TokenVsLeakyMain` topic entry point; Gradle task `runTokenVsLeaky` (+ `runPost3` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post3/`; gate-invariant, golden, and registry tests
+  - CI generates + uploads the Post 3 report alongside Posts 1-2
+
 ## [Unreleased] - 2026-06-03
 
 ### Added

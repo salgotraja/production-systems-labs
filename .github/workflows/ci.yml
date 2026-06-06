@@ -52,6 +52,7 @@ jobs:
         run: |
           ${{ matrix.gradlew }} :backpressure-playground:runLoadCollapse --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/backpressure-playground/bp-post1"
           ${{ matrix.gradlew }} :backpressure-playground:runAdmissionControl --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/backpressure-playground/bp-post2"
+          ${{ matrix.gradlew }} :backpressure-playground:runTokenVsLeaky --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/backpressure-playground/bp-post3"
       - name: Upload backpressure-playground reports
         uses: actions/upload-artifact@v4
         with:

@@ -48,6 +48,15 @@ class GoldenOutputTest {
         assertCommonArtifacts(outputDir, 2);
     }
 
+    @Test
+    void tokenVsLeakyMatchesGoldenCsv() throws Exception {
+        Path outputDir = tempDir.resolve("bp-post3");
+        TokenVsLeakyMain.main(args(outputDir, "--duration", "5s"));
+        assertCsvEquals("bp-post3/bp-post3-burst-sweep.csv", outputDir.resolve("bp-post3-burst-sweep.csv"));
+        assertCsvEquals("bp-post3/bp-post3-shaping.csv", outputDir.resolve("bp-post3-shaping.csv"));
+        assertCommonArtifacts(outputDir, 3);
+    }
+
     private String[] args(Path outputDir, String... extraArgs) {
         String[] args = new String[extraArgs.length + 3];
         args[0] = "--deterministic";

@@ -42,7 +42,17 @@ public final class ExperimentRegistry {
             Path.of("build", "bp-post2"),
             Path.of("golden", "bp-post2"));
 
-    private static final List<ExperimentDefinition> ALL = List.of(LOAD_COLLAPSE, ADMISSION_CONTROL);
+    public static final ExperimentDefinition TOKEN_VS_LEAKY = new ExperimentDefinition(
+            "token-vs-leaky",
+            3,
+            "Token Bucket vs Leaky Bucket",
+            "runTokenVsLeaky",
+            TokenVsLeakyMain.class,
+            Path.of("build", "bp-post3"),
+            Path.of("golden", "bp-post3"));
+
+    private static final List<ExperimentDefinition> ALL =
+            List.of(LOAD_COLLAPSE, ADMISSION_CONTROL, TOKEN_VS_LEAKY);
 
     private ExperimentRegistry() {}
 

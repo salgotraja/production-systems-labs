@@ -32,7 +32,9 @@ is the **shape and the mechanism**, not the numbers:
 
 - an unmanaged queue collapses goodput *below* capacity instead of plateauing at it (Post 1);
 - retries amplify an overload without adding goodput (Post 1);
-- a concurrency limit sized to roughly `capacity x deadline` restores the plateau (Post 2).
+- a concurrency limit sized to roughly `capacity x deadline` restores the plateau (Post 2);
+- token and leaky buckets bound the same average rate - the design choice is where the burst
+  and the wait land: downstream of a policer, at the gate of a shaper (Post 3).
 
 In a real system the collapse point, the best limit, and the latencies will all differ with
 traffic variance, service-time distribution, core count, and downstream behaviour - but the
@@ -196,3 +198,86 @@ run window) with reject% rising gracefully and p99 capped at the deadline.
 | `admission/AdmissionScenario.java` | The limit sweep and the offered-load plateau experiments |
 | `charting/AdmissionChartGenerator.java` | XChart PNGs for the sweet-spot and plateau charts |
 | `AdmissionControlMain.java` | Entry point: CSVs, charts, manifest, report |
+
+---
+
+## Post 3: Token Bucket vs Leaky Bucket
+
+**TL;DR**
+- Both gates bound the same average admitted rate, so goodput alone cannot tell them apart -
+  the goodput columns in this experiment are near-identical at every burst size
+- The design difference is *where the burst and the wait land*: a token bucket (policing) passes
+  banked bursts downstream at line rate, so the wait queues up at the server; a leaky bucket
+  (shaping) releases a flat stream at the leak rate, so the wait is held at the gate
+- The burst knob (bucket size B / queue depth Q) shares Post 2's deadline budget:
+  `capacity x deadline = 20`. Oversize either knob and the deadline is blown on that gate's own
+  side - server wait for token, gate delay for leaky
+
+Post 2 chose *how much* to admit; Post 3 chooses *how the admitted rate is delivered*.
+
+### Run it
+
+```bash
+./gradlew :backpressure-playground:runTokenVsLeaky -Pargs="--deterministic --duration 5s --output-dir ./results/token-vs-leaky"
+```
+
+Like Posts 1-2, the model is a fully synthetic, single-threaded discrete-event simulation, so
+output is byte-for-byte reproducible. `--concurrency` and `--snapshot-interval` are accepted for
+CLI consistency but do not affect this experiment.
+
+### What it models
+
+The same fixed-capacity server (mu = 100 rps, 200ms deadline) fronted by a rate gate set to the
+sustained rate of 100 rps. Two experiments:
+
+1. **Sweeping the burst dimension** - a bursty demand curve (20 rps valleys for 1s, 600 rps
+   spikes for 200ms, ~113 rps average) is run through each gate while its burst knob is swept
+   from 1 to 80. The curve's long valley banks more burst credit than the largest swept bucket -
+   under Post 2's shallower curve, sizes beyond the valley surplus would all behave alike.
+2. **Shaping vs policing** - at the burst budget of 20, the downstream rate is sampled per 100ms
+   window: the token bucket passes the spike through at up to 290 rps, the leaky bucket never
+   exceeds 100 rps and smears the burst into the following valley.
+
+### Expected golden output (deterministic, 5s)
+
+Burst sweep (offered ~113 rps, capacity 100, deadline budget 20):
+
+| Limiter | Burst | Goodput | Reject% | Served-late% | Gate-delay p99 | Server-wait p99 | Downstream peak |
+|---|------:|--------:|--------:|-------------:|---------------:|----------------:|----------------:|
+| token-bucket | 1 | 31.2 | 72.4 | 0.0 | 0 | 0 | 100 |
+| token-bucket | **20** | **47.8** | 57.8 | 0.0 | 0 | 190 | 290 |
+| token-bucket | 80 | 25.4 | 15.4 | 62.2 | 0 | 790 | 610 |
+| leaky-bucket | 1 | 31.2 | 72.4 | 0.0 | 0 | 0 | 100 |
+| leaky-bucket | **20** | **48.0** | 57.6 | 0.0 | 190 | 0 | 100 |
+| leaky-bucket | 80 | 25.4 | 15.2 | 62.4 | 790 | 0 | 100 |
+
+Read the columns in pairs: goodput is the same for both gates at every burst size, and the p99
+wait mirrors exactly - 190ms at the server for token, 190ms at the gate for leaky, 790ms on
+each gate's own side once the knob is 4x oversized. Only the downstream peak separates them:
+the token bucket's grows with the bucket (100 -> 610 rps), the leaky bucket's never leaves the
+leak rate. At burst dimension 1 the two gates converge to the same strict policer. Goodput tops
+out near 48 rps, well below capacity: a rate gate cannot bank idle *server* time across valleys
+the way Post 2's concurrency limit can - rejecting at the gate by rate, not by what the server
+could still absorb, is the price of bounding the downstream rate.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `bp-post3-burst-sweep.csv` | One row per (limiter, burst dimension) over the bursty curve - golden contract |
+| `bp-post3-shaping.csv` | Downstream rate per 100ms window: offered vs token vs leaky - golden contract |
+| `bp-post3-shaping.png` | Policing passes the burst, shaping flattens it |
+| `bp-post3-burst-sweep.png` | Peak downstream rate vs burst dimension - the burst the server sees |
+| `manifest.json` / `report.html` | Run receipt and self-contained HTML report |
+
+### Key source files
+
+| File | Role |
+|---|---|
+| `shaping/RateGate.java` | Gate contract: reject, or admit with a downstream release time |
+| `shaping/TokenBucketGate.java` | Policing: banked tokens, immediate release |
+| `shaping/LeakyBucketGate.java` | Shaping: paced release at the leak rate, bounded gate queue |
+| `shaping/ShapingSimulator.java` | Gate + single-server FIFO; splits the wait by where it happened |
+| `shaping/ShapingScenario.java` | The burst sweep and the downstream-rate time series |
+| `charting/ShapingChartGenerator.java` | XChart PNGs for the shaping and burst-sweep charts |
+| `TokenVsLeakyMain.java` | Entry point: CSVs, charts, manifest, report |
