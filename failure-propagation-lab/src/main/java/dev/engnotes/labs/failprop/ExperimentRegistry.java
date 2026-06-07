@@ -42,7 +42,17 @@ public final class ExperimentRegistry {
             Path.of("build", "fp-post2"),
             Path.of("golden", "fp-post2"));
 
-    private static final List<ExperimentDefinition> ALL = List.of(CASCADING_FAILURES, RETRY_STORMS);
+    public static final ExperimentDefinition CIRCUIT_BREAKER = new ExperimentDefinition(
+            "circuit-breaker",
+            3,
+            "Circuit Breaker Design",
+            "runCircuitBreaker",
+            CircuitBreakerMain.class,
+            Path.of("build", "fp-post3"),
+            Path.of("golden", "fp-post3"));
+
+    private static final List<ExperimentDefinition> ALL =
+            List.of(CASCADING_FAILURES, RETRY_STORMS, CIRCUIT_BREAKER);
 
     private ExperimentRegistry() {}
 

@@ -66,6 +66,7 @@ data class ExperimentTask(
 val experiments = listOf(
     ExperimentTask(1, "runCascadingFailures", "Cascading failures explained", "dev.engnotes.labs.failprop.CascadingFailuresMain"),
     ExperimentTask(2, "runRetryStorms", "Retry storms and amplification", "dev.engnotes.labs.failprop.RetryStormsMain"),
+    ExperimentTask(3, "runCircuitBreaker", "Circuit breaker design", "dev.engnotes.labs.failprop.CircuitBreakerMain"),
 )
 
 experiments.forEach { experiment ->

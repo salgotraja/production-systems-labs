@@ -41,6 +41,15 @@ class GoldenOutputTest {
     }
 
     @Test
+    void circuitBreakerMatchesGoldenCsv() throws Exception {
+        Path outputDir = tempDir.resolve("fp-post3");
+        CircuitBreakerMain.main(args(outputDir, "--duration", "5s"));
+        assertCsvEquals("fp-post3/fp-post3-breaker-sweep.csv", outputDir.resolve("fp-post3-breaker-sweep.csv"));
+        assertCsvEquals("fp-post3/fp-post3-blast-radius.csv", outputDir.resolve("fp-post3-blast-radius.csv"));
+        assertCommonArtifacts(outputDir, 3);
+    }
+
+    @Test
     void retryStormsMatchesGoldenCsv() throws Exception {
         Path outputDir = tempDir.resolve("fp-post2");
         RetryStormsMain.main(args(outputDir, "--duration", "5s"));
