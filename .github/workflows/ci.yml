@@ -64,6 +64,7 @@ jobs:
         run: |
           ${{ matrix.gradlew }} :failure-propagation-lab:runCascadingFailures --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/failure-propagation-lab/fp-post1"
           ${{ matrix.gradlew }} :failure-propagation-lab:runRetryStorms --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/failure-propagation-lab/fp-post2"
+          ${{ matrix.gradlew }} :failure-propagation-lab:runCircuitBreaker --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/failure-propagation-lab/fp-post3"
       - name: Upload failure-propagation-lab reports
         uses: actions/upload-artifact@v4
         with:

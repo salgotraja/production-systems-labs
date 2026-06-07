@@ -211,3 +211,106 @@ the circuit breaker's job - Post 3.
 | `retrystorm/RetryStormScenario.java` | The amplification sweep and the transient-degradation timeline |
 | `charting/StormChartGenerator.java` | XChart PNGs for the storm, rescue, and amplification charts |
 | `RetryStormsMain.java` | Entry point: CSVs, charts, manifest, report |
+
+---
+
+## Post 3: Circuit Breaker Design
+
+**TL;DR**
+- A circuit breaker cannot buy successes against a real outage - success stays 0% with or
+  without it; what it buys is cheap failures (median 105ms fail-fast vs a 1305ms hang), an
+  unharassed dependency (Post 2's 9.00 attempts/request collapses to 0.29), and the survival
+  of routes that share resources with the failing one
+- The blast radius is the headline: naive retries hold the shared frontend pool for 1305ms per
+  request and kill route-b for seven windows; with breakers, route-b never drops a single
+  window - the trip truncates in-flight retry chains and frees the pool
+- Recovery is one nested probe pass: the frontend edge's single trial request traverses the
+  chain, drives the database edge's probe, and re-closes both breakers together, 15ms apart -
+  and the retries above the breaker bridge its last open moments
+
+The breaker never learns where the failure is - it breaks on observed edge health. That is why
+one breaker at the top edge also stops the storm three hops down, and why the same state
+machine works whether the slow thing is its callee or its callee's callee.
+
+### Run it
+
+```bash
+./gradlew :failure-propagation-lab:runCircuitBreaker -Pargs="--deterministic --duration 5s --output-dir ./results/circuit-breaker"
+```
+
+And the live mode (ADR-007's promise: the same `CircuitBreaker` class, wall clock, real HTTP):
+
+```bash
+./gradlew :failure-propagation-lab:runCircuitBreakerLive
+# in another terminal:
+curl localhost:7070/checkout                      # ok in ~15ms
+curl -X POST "localhost:7071/degrade?ms=800"
+curl localhost:7070/checkout                      # 922ms of retries... breaker OPEN
+curl localhost:7070/checkout                      # 503 in ~107ms - fail fast
+curl -X POST "localhost:7071/degrade?ms=10"
+sleep 5; curl localhost:7070/checkout             # the probe closes it: ok in ~17ms
+```
+
+Live mode is demonstrative only - never golden-tested, never run in CI.
+
+### What it models
+
+The hand-rolled [`CircuitBreaker`](src/main/java/dev/engnotes/labs/failprop/breaker/CircuitBreaker.java)
+is one page of arithmetic: a count-based sliding window (last 20 outcomes, minimum 10), a 50%
+failure-rate trip, a 500ms open period, and a single half-open probe. Time is passed in
+explicitly, so the same class runs under the simulation clock and the live mode's wall clock.
+Two experiments:
+
+1. **The hard-down comparison** - Post 2's exact scenario (single chain, R=3, database at
+   500ms vs the 400ms timeout) with no protection, with hand-rolled breakers, and with real
+   Resilience4j breakers driven through a synthetic-clock adapter.
+2. **The blast-radius timeline (the hero)** - Post 1's topology (shared frontend, pool 20,
+   route-b never touches the database) + Post 2's retry policy + a transient degradation,
+   naive vs breakered. Route-b has a 300ms interactive budget; a 1000ms deadline would forgive
+   a full second of shared-pool queueing and hide the cascade entirely.
+
+### Expected golden output (deterministic, 5s)
+
+Hard-down comparison:
+
+| Policy | Success% | DB attempts/request | DB attempts rps | p50 resolution | p99 resolution |
+|---|---------:|--------------------:|----------------:|---------------:|---------------:|
+| naive-retry | 0.0 | 9.00 | 369.4 | 1305 | 1305 |
+| with-breaker | 0.0 | **0.29** | **9.6** | **105** | 905 |
+| resilience4j | 0.0 | **0.29** | **9.6** | **105** | 905 |
+
+The naive row is Post 2's golden row, reproduced exactly (the cross-check). The breaker rows:
+the storm collapses 38x, the median failure is a fast 105ms instead of the full 1305ms retry
+budget, and the success column never moves - a breaker is not a source of availability, it is
+a manager of failure cost. The Resilience4j row is byte-identical to the hand-rolled one:
+once the state machine is understood, the library holds no surprises.
+
+Blast-radius timeline: the naive run's route-b - which never touches the database - fails for
+seven windows (five at 0%) starting ~1.8s, as 1305ms route-a holds exhaust the 20-worker
+frontend pool. The breakered run's route-b **never drops below 100% in any window**: the edges
+trip at ~2.09s, in-flight retry chains truncate, and the pool drains in time. The database
+columns show 0 attempts while the breakers are open (the naive run keeps hammering at 100-150
+rps), and the state columns record the whole arc: closed -> open at ~2.09s -> half-open at
+~2.59s -> closed at 2.60s, both edges re-closed by one nested probe.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `fp-post3-breaker-sweep.csv` | One row per policy on the hard-down chain - golden contract |
+| `fp-post3-blast-radius.csv` | Per-100ms-window route success, db attempts, breaker states - golden contract |
+| `fp-post3-blast-radius.png` | Route-b survival: the breaker contains Post 1's cascade |
+| `fp-post3-storm-suppression.png` | Post 2's storm, suppressed to a probe trickle |
+| `manifest.json` / `report.html` | Run receipt and self-contained HTML report |
+
+### Key source files
+
+| File | Role |
+|---|---|
+| `breaker/CircuitBreaker.java` | The hand-rolled state machine (deep-dive material) |
+| `breaker/BreakerConfig.java` | Threshold, window, open duration, probe budget |
+| `breaker/EdgeBreaker.java` | What the simulator needs from a breaker on one edge |
+| `breaker/Resilience4jBreakerAdapter.java` | The real library under the synthetic clock |
+| `breaker/BreakerStormSimulator.java` | Post 2's machine + routes + breaker gates + fail-fast responses |
+| `breaker/BreakerStormScenario.java` | The hard-down comparison and the blast-radius timeline |
+| `CircuitBreakerLiveMain.java` | The Javalin live mode - trip it with curl |

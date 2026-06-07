@@ -4,6 +4,31 @@
 
 ### Added
 
+**Series 3: Failure Propagation in Microservices - Post 3**
+
+- Post 3 "Circuit Breaker Design" (`runCircuitBreaker` + `runPost3` alias)
+  - `breaker`: hand-rolled `CircuitBreaker` - the full CLOSED/OPEN/HALF_OPEN state machine with
+    an explicit clock (same class runs under the simulation clock and the live mode's wall
+    clock); count-based sliding window; transition log; boundary-exact unit tests
+  - `breaker`: `EdgeBreaker` interface + `Resilience4jBreakerAdapter` - the real library driven
+    deterministically (count-based window, automatic transition disabled, day-long wait so the
+    wall clock can never leak in, manual transitions from synthetic time); determinism pinned
+    by test, and its golden sweep row is byte-identical to the hand-rolled one
+  - `breaker`: `BreakerStormSimulator` - Post 2's machine extended with multiple routes,
+    breaker-gated edges (rejected attempts fail fast without spawning downstream work), and
+    the fail-response path (reachable now: a breakered callee fails faster than its caller's
+    timeout); naive single-route run reproduces Post 2's golden numbers exactly (pinned)
+  - `breaker`: `BreakerStormScenario` - hard-down comparison (storm 9.00 -> 0.29
+    attempts/request, hangs 1305ms -> 105ms median, success 0 either way) + blast-radius
+    timeline on Post 1's shared-pool topology (route-b: seven dead windows naive, zero
+    breakered; both edges re-closed by one nested probe pass; route-b scored against a 300ms
+    interactive budget)
+  - `CircuitBreakerLiveMain` + `runCircuitBreakerLive` task - the ADR-007 Javalin live mode:
+    two local services, the same hand-rolled breaker on the wall clock, trip and recover it
+    with curl; demonstrative only, never golden-tested, not in CI
+  - Version catalog: `resilience4j-circuitbreaker`, `javalin`, `slf4j-simple`
+  - Golden files in `golden/fp-post3/`; CI report step extended
+
 **Series 3: Failure Propagation in Microservices - Post 2**
 
 - Post 2 "Retry Storms and Amplification" (`runRetryStorms` + `runPost2` alias)

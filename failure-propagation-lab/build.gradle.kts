@@ -76,3 +76,12 @@ experiments.forEach { experiment ->
     registerExperimentTask(experiment.taskName, experiment.title, experiment.mainClassName)
     registerPostAlias(experiment.postNumber, experiment.taskName, experiment.title)
 }
+
+// Post 3's Javalin live mode (ADR-007): real HTTP, wall clock, never golden-tested, not in CI.
+tasks.register<JavaExec>("runCircuitBreakerLive") {
+    group = "failure-propagation-lab"
+    description = "Run the circuit-breaker live demo (two local Javalin services; trip it with curl)"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.engnotes.labs.failprop.CircuitBreakerLiveMain")
+    workingDir = rootProject.projectDir
+}

@@ -80,10 +80,13 @@ the full caveat.
 |------|-------|-------------|----------------------|
 | 1 | Cascading Failures Explained | `./gradlew :failure-propagation-lab:runCascadingFailures` | a database degraded to `500` ms collapses route-a to `10.0`% success - and route-b, which never touches the database, to `24.5`%; the only coupling is the shared frontend worker pool, and the backlog queues upstream (frontend queue `0 -> 91` while the database queue reads `0`) |
 | 2 | Retry Storms and Amplification | `./gradlew :failure-propagation-lab:runRetryStorms` | per-hop retries compound multiplicatively: `3` attempts at each of two hops = `9.00` database attempts per request against a hard-down dependency, with `0`% success at every R; against a 1s transient the same policy rescues clients (~`100`% vs no-retry's six failed windows) at a `6x` database-load spike |
+| 3 | Circuit Breaker Design | `./gradlew :failure-propagation-lab:runCircuitBreaker` | the breaker buys no successes against a hard-down dependency (`0`% with or without) - it collapses Post 2's storm `9.00 -> 0.29` attempts/request, turns 1305ms hangs into `105`ms fail-fasts, and contains Post 1's cascade: route-b never drops a window where naive retries kill it for seven; the Resilience4j row is byte-identical to the hand-rolled one |
 
 ```bash
 ./gradlew :failure-propagation-lab:runCascadingFailures -Pargs="--deterministic --duration 5s --output-dir ./results/cascading-failures"
 ./gradlew :failure-propagation-lab:runRetryStorms -Pargs="--deterministic --duration 5s --output-dir ./results/retry-storms"
+./gradlew :failure-propagation-lab:runCircuitBreaker -Pargs="--deterministic --duration 5s --output-dir ./results/circuit-breaker"
+./gradlew :failure-propagation-lab:runCircuitBreakerLive   # Javalin live mode - trip a real breaker with curl
 ```
 
 Series 3 golden files live under `golden/fp-post{N}/`. Per ADR-007 the golden contract is the
