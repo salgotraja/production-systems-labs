@@ -1,5 +1,34 @@
 # Changelog
 
+## [Unreleased] - 2026-06-07
+
+### Added
+
+**Series 3: Failure Propagation in Microservices - Post 1**
+
+- New `failure-propagation-lab` Gradle module (mirrors `backpressure-playground` plumbing:
+  module-local `ExperimentRegistry` / `ExperimentDefinition` / `PostArtifacts`, golden dirs
+  under `golden/fp-post{N}`)
+- Post 1 "Cascading Failures Explained" (`runCascadingFailures` + `runPost1` alias)
+  - `cascade`: `ServiceConfig` (bounded worker pool + unbounded FIFO queue), `ServiceTime`
+    (constant / degradedAfter), `RouteDemand` (linear synchronous call chain)
+  - `cascade`: `CascadeSimulator` - deterministic multi-service event loop; a synchronous call
+    holds every upstream worker until the leaf completes (the cascade vector); no timeouts, no
+    retries by design (Posts 2 and 4's subjects)
+  - `cascade`: `CascadeScenario` - database service-time sweep across the 200ms capacity edge +
+    mid-run degradation timeline (10ms -> 500ms at t=2s) with per-service queue-depth samples
+  - `charting`: `CascadeChartGenerator` - sweep cliff and degradation-timeline PNGs
+  - Golden files in `golden/fp-post1/`; CI generates and uploads a
+    `failure-propagation-lab-reports-*` artifact per platform
+  - Tests: cascade invariants (the failure crosses to a route that never touches the slow
+    dependency; isolated frontend pools contain the blast; the backlog queues upstream of the
+    bottleneck - frontend queue grows 0 -> 91 while the database queue reads 0), golden
+    regression, registry
+- Architecture per ADR-007: the golden contract for every Series 3 post is the synthetic
+  simulation; Javalin live mode (real localhost HTTP over the same topology) lands in Post 3
+  and is demonstrative, never golden-tested
+- Root README Series 3 section
+
 ## [Unreleased] - 2026-06-06
 
 ### Added

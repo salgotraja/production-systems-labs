@@ -60,3 +60,11 @@ jobs:
         with:
           name: backpressure-playground-reports-${{ matrix.artifact-suffix }}
           path: build/reports/backpressure-playground
+      - name: Generate failure-propagation-lab reports
+        run: |
+          ${{ matrix.gradlew }} :failure-propagation-lab:runCascadingFailures --no-daemon -Pargs="--deterministic --duration 5s --output-dir build/reports/failure-propagation-lab/fp-post1"
+      - name: Upload failure-propagation-lab reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-propagation-lab-reports-${{ matrix.artifact-suffix }}
+          path: build/reports/failure-propagation-lab

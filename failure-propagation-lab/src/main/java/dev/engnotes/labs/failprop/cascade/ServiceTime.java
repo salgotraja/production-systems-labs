@@ -1,0 +1,48 @@
+/*
+ * Copyright 2026 engnotes.dev
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package dev.engnotes.labs.failprop.cascade;
+
+/**
+ * A service's own-work duration as a function of simulated time, evaluated when the work
+ * starts. Deterministic by construction: the same start time always yields the same duration,
+ * which is what lets a mid-run degradation ship a golden file.
+ */
+@FunctionalInterface
+public interface ServiceTime {
+
+    /** Own-work duration in milliseconds for work starting at {@code startMs}. */
+    long at(double startMs);
+
+    /** A fixed service time, the sweep building block. */
+    static ServiceTime constant(long ms) {
+        if (ms <= 0) {
+            throw new IllegalArgumentException("service time must be > 0");
+        }
+        return startMs -> ms;
+    }
+
+    /**
+     * A step degradation: {@code healthyMs} before {@code thresholdMs}, {@code degradedMs}
+     * from then on. Models a dependency going slow mid-run without ever recovering - the
+     * timeline experiment's shape.
+     */
+    static ServiceTime degradedAfter(double thresholdMs, long healthyMs, long degradedMs) {
+        if (healthyMs <= 0 || degradedMs <= 0) {
+            throw new IllegalArgumentException("service times must be > 0");
+        }
+        return startMs -> startMs < thresholdMs ? healthyMs : degradedMs;
+    }
+}

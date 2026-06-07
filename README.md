@@ -21,14 +21,14 @@ cd production-systems-labs
 
 ## Series 1 - Tail Latency & System Behavior (`latency-lab`)
 
-| Post | Topic                                   | Gradle Task | Deterministic result |
-|------|-----------------------------------------|-------------|----------------------|
-| 1 | [Why Average Latency Lies](https://engnotes.dev/blog/tail-latency-system-behavior/part-1-why-average-latency-lies)           | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
-| 2 | Queueing Theory for Engineers           | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
-| 3 | Hedged Requests & Speculative Execution | `./gradlew :latency-lab:runHedgedRequests` | p95 hedge p99 `43.0ms`, extra load `3.7%` |
-| 4 | The Coordinated Omission Problem        | `./gradlew :latency-lab:runCoordinatedOmission` | closed-loop raw p99 `10.0ms`, corrected p99 `460.0ms` |
-| 5 | Backpressure Design Patterns            | `./gradlew :latency-lab:runBackpressure` | token-bucket accepted `599`, rejected `401`, p99 `10.0ms` |
-| 6 | SLO Engineering                         | `./gradlew :latency-lab:runSloPolicy` | bulkhead SLI `99.60%`, worst burn `1.00x` |
+| Post | Topic                                                                                                              | Gradle Task | Deterministic result |
+|------|--------------------------------------------------------------------------------------------------------------------|-------------|----------------------|
+| 1 | [Why Average Latency Lies](https://engnotes.dev/blog/tail-latency-system-behavior/part-1-why-average-latency-lies) | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
+| 2 | [Queueing Theory for Engineers](https://engnotes.dev/blog/tail-latency-system-behavior/part-2-queueing-theory-for-engineers)                                                                                  | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
+| 3 | Hedged Requests & Speculative Execution                                                                            | `./gradlew :latency-lab:runHedgedRequests` | p95 hedge p99 `43.0ms`, extra load `3.7%` |
+| 4 | The Coordinated Omission Problem                                                                                   | `./gradlew :latency-lab:runCoordinatedOmission` | closed-loop raw p99 `10.0ms`, corrected p99 `460.0ms` |
+| 5 | Backpressure Design Patterns                                                                                       | `./gradlew :latency-lab:runBackpressure` | token-bucket accepted `599`, rejected `401`, p99 `10.0ms` |
+| 6 | SLO Engineering                                                                                                    | `./gradlew :latency-lab:runSloPolicy` | bulkhead SLI `99.60%`, worst burn `1.00x` |
 
 ### Standard Flags (all experiments)
 
@@ -74,17 +74,33 @@ arrivals). The absolute figures are artifacts of the chosen constants; what tran
 is the mechanism, not the numbers. See the [module README](backpressure-playground/README.md) for
 the full caveat.
 
+## Series 3 - Failure Propagation in Microservices (`failure-propagation-lab`)
+
+| Post | Topic | Gradle Task | Deterministic result |
+|------|-------|-------------|----------------------|
+| 1 | Cascading Failures Explained | `./gradlew :failure-propagation-lab:runCascadingFailures` | a database degraded to `500` ms collapses route-a to `10.0`% success - and route-b, which never touches the database, to `24.5`%; the only coupling is the shared frontend worker pool, and the backlog queues upstream (frontend queue `0 -> 91` while the database queue reads `0`) |
+
+```bash
+./gradlew :failure-propagation-lab:runCascadingFailures -Pargs="--deterministic --duration 5s --output-dir ./results/cascading-failures"
+```
+
+Series 3 golden files live under `golden/fp-post{N}/`. Per ADR-007 the golden contract is the
+synthetic multi-service simulation; a Javalin live mode (the same topology over real localhost
+HTTP) lands in Post 3, where it is demonstrative and never golden-tested. The same synthetic-lab
+caveat as Series 2 applies; see the [module README](failure-propagation-lab/README.md).
+
 ## Repository Structure
 
 ```
 production-systems-labs/
 ├── build.gradle.kts          # root: group/version only
-├── settings.gradle.kts       # includes lab-commons + latency-lab + backpressure-playground
+├── settings.gradle.kts       # includes lab-commons + the per-series labs
 ├── gradle/libs.versions.toml # pinned dependency versions
 ├── buildSrc/                 # shared Java 25 convention plugin
 ├── lab-commons/              # shared: histogram, csv, cli, terminal, concurrency
 ├── latency-lab/              # Series 1 (6 posts)
 ├── backpressure-playground/  # Series 2 (Posts 1-5, complete)
+├── failure-propagation-lab/  # Series 3 (Post 1; Posts 2-5 planned)
 ├── golden/                   # reference output for golden file tests
 └── .github/workflows/        # build + golden CSV regression tests
 ```
