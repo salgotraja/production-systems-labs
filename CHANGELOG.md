@@ -60,6 +60,16 @@
   backpressure-playground report step
 - `.idea/gradle.xml`: registered the `backpressure-playground` module
 
+### Fixed
+
+- `backpressure-playground` input guards: `SloControlSimulator` rejects run windows
+  shorter than the client deadline (previously crashed in the burst series or silently
+  inflated rates), `CollapseSimulator` rejects non-positive offered load (previously
+  looped forever), and all five chart generators tolerate a parent-less `--output-dir`
+  like the CSV writers already did
+- `backpressure-playground/README.md`: Post 4 shed-wait p50 table cells corrected to the
+  golden CSV values (fifo 1250, lifo 2495)
+
 ## [Unreleased] - 2026-06-03
 
 ### Added

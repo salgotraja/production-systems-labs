@@ -332,10 +332,10 @@ Sweep at 2x capacity (200 rps offered):
 
 | Policy | Goodput | Shed% | Served-late% | p99 served | Shed wait p50 | Wasted% |
 |---|--------:|------:|-------------:|-----------:|--------------:|--------:|
-| fifo | 7.8 | 50.0 | 46.1 | 2481 | 2475 | 92.2 |
+| fifo | 7.8 | 50.0 | 46.1 | 2481 | 1250 | 92.2 |
 | tail-drop | 100.0 | 50.0 | 0.0 | 200 | **0** | 0.0 |
 | expire | 100.0 | 50.0 | 0.0 | 200 | **195** | 0.0 |
-| lifo | 100.0 | 50.0 | 0.0 | **10** | **2497** | 0.0 |
+| lifo | 100.0 | 50.0 | 0.0 | **10** | **2495** | 0.0 |
 
 Goodput and shed% are identical for the three real policies - they cannot be ranked on how much
 they shed, only on who they serve and how the shed find out. `tail-drop` and `expire` serve the
