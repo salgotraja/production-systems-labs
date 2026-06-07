@@ -92,6 +92,9 @@ final class CollapseSimulator {
      * @param retriesEnabled whether timed-out / rejected requests are re-sent
      */
     LoadLevelResult run(int offeredRps, long durationMs, boolean retriesEnabled) {
+        if (offeredRps <= 0) {
+            throw new IllegalArgumentException("offeredRps must be > 0");
+        }
         // Monotonic sequence id makes the event ordering a total order, so ties on arrival
         // time resolve identically on every run (byte-stable golden output).
         long[] seq = {0L};

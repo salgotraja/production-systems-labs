@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -125,5 +126,15 @@ class SloControlSimulatorTest {
         for (ClassPolicy policy : ClassPolicy.values()) {
             assertEquals(run(policy, 300.0), run(policy, 300.0));
         }
+    }
+
+    @Test
+    void rejectsWindowsShorterThanTheDeadline() {
+        // duration <= deadline leaves no scoring window: rates inflate and the
+        // per-window array size goes negative. Both entry points must refuse it.
+        assertThrows(IllegalArgumentException.class,
+                () -> simulator().run(DemandCurve.constant(100.0), ClassPolicy.BLIND, DEADLINE_MS));
+        assertThrows(IllegalArgumentException.class,
+                () -> simulator().successPerWindow(DemandCurve.constant(100.0), ClassPolicy.PRIORITY, 100L, 100L));
     }
 }

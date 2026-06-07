@@ -83,7 +83,7 @@ public final class ShapingChartGenerator {
         chart.addSeries("Token bucket (policing)", time, token).setMarker(SeriesMarkers.NONE);
         chart.addSeries("Leaky bucket (shaping)", time, leaky).setMarker(SeriesMarkers.NONE);
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 
@@ -132,7 +132,7 @@ public final class ShapingChartGenerator {
         chart.addSeries("Leaky bucket (shaping)", burst, leakyPeak).setMarker(SeriesMarkers.DIAMOND);
         chart.addSeries("Server capacity", burst, capacity).setMarker(SeriesMarkers.NONE);
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 }

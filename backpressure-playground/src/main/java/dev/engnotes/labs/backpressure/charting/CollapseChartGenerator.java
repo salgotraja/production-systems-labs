@@ -76,7 +76,7 @@ public final class CollapseChartGenerator {
         chart.addSeries("Ideal (with backpressure)", offered, ideal).setMarker(SeriesMarkers.NONE);
         chart.addSeries("Goodput (no backpressure)", offered, goodput).setMarker(SeriesMarkers.NONE);
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 
@@ -116,7 +116,7 @@ public final class CollapseChartGenerator {
             chart.addSeries("Effective (with retries)", offered, effectiveRetry).setMarker(SeriesMarkers.NONE);
         }
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 

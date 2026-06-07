@@ -178,6 +178,10 @@ public final class SloControlSimulator {
     }
 
     private Outcome simulate(DemandCurve curve, ClassPolicy policy, long durationMs) {
+        if (durationMs <= clientDeadlineMs) {
+            throw new IllegalArgumentException(
+                    "durationMs must exceed clientDeadlineMs: the scoring window (duration - deadline) is empty");
+        }
         double[] arrivals = curve.arrivalTimesMs(durationMs);
         int queueBound = deadlineQueueBound();
 

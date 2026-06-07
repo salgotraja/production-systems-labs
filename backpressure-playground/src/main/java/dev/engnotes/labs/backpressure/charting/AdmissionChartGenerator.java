@@ -83,7 +83,7 @@ public final class AdmissionChartGenerator {
         chart.addSeries("Goodput (rps)", limit, goodput).setMarker(SeriesMarkers.CIRCLE);
         chart.addSeries("Utilization (%)", limit, utilization).setMarker(SeriesMarkers.NONE);
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 
@@ -129,7 +129,7 @@ public final class AdmissionChartGenerator {
         chart.addSeries("Admission limit = " + result.littlesLawLimit(), offered, goodputLimited)
                 .setMarker(SeriesMarkers.NONE);
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 }

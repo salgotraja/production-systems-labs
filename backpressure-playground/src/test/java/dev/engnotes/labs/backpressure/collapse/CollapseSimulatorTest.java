@@ -18,6 +18,7 @@ package dev.engnotes.labs.backpressure.collapse;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -92,5 +93,11 @@ class CollapseSimulatorTest {
         LoadLevelResult first = simulator().run(150, WINDOW_MS, true);
         LoadLevelResult second = simulator().run(150, WINDOW_MS, true);
         assertEquals(first, second, "identical inputs must produce identical results");
+    }
+
+    @Test
+    void rejectsNonPositiveOfferedLoad() {
+        assertThrows(IllegalArgumentException.class, () -> simulator().run(0, WINDOW_MS, false),
+                "zero offered load would loop forever generating NaN arrivals");
     }
 }

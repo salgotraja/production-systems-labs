@@ -97,7 +97,7 @@ public final class SheddingChartGenerator {
                 .setLineStyle(SeriesLines.DASH_DASH);
         chart.addSeries("lifo", time, lifo).setMarker(SeriesMarkers.NONE);
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 
@@ -151,7 +151,7 @@ public final class SheddingChartGenerator {
             }
         }
 
-        Files.createDirectories(outputPath.getParent());
+        Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Path.of("."));
         BitmapEncoder.saveBitmap(chart, outputPath.toAbsolutePath().toString(), BitmapFormat.PNG);
     }
 
