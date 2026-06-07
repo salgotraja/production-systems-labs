@@ -33,7 +33,16 @@ public final class ExperimentRegistry {
             Path.of("build", "fp-post1"),
             Path.of("golden", "fp-post1"));
 
-    private static final List<ExperimentDefinition> ALL = List.of(CASCADING_FAILURES);
+    public static final ExperimentDefinition RETRY_STORMS = new ExperimentDefinition(
+            "retry-storms",
+            2,
+            "Retry Storms and Amplification",
+            "runRetryStorms",
+            RetryStormsMain.class,
+            Path.of("build", "fp-post2"),
+            Path.of("golden", "fp-post2"));
+
+    private static final List<ExperimentDefinition> ALL = List.of(CASCADING_FAILURES, RETRY_STORMS);
 
     private ExperimentRegistry() {}
 

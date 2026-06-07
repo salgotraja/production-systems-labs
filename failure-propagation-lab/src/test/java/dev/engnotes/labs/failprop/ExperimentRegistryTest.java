@@ -34,7 +34,7 @@ class ExperimentRegistryTest {
             assertTrue(ids.add(experiment.id()), "duplicate id: " + experiment);
             assertTrue(postNumbers.add(experiment.postNumber()), "duplicate post number: " + experiment);
         }
-        assertEquals(Set.of("cascading-failures"), ids);
+        assertEquals(Set.of("cascading-failures", "retry-storms"), ids);
     }
 
     @Test

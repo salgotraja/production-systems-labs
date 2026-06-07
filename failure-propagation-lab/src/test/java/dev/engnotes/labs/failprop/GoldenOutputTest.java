@@ -40,6 +40,15 @@ class GoldenOutputTest {
         assertCommonArtifacts(outputDir, 1);
     }
 
+    @Test
+    void retryStormsMatchesGoldenCsv() throws Exception {
+        Path outputDir = tempDir.resolve("fp-post2");
+        RetryStormsMain.main(args(outputDir, "--duration", "5s"));
+        assertCsvEquals("fp-post2/fp-post2-amplification-sweep.csv", outputDir.resolve("fp-post2-amplification-sweep.csv"));
+        assertCsvEquals("fp-post2/fp-post2-storm-timeline.csv", outputDir.resolve("fp-post2-storm-timeline.csv"));
+        assertCommonArtifacts(outputDir, 2);
+    }
+
     private String[] args(Path outputDir, String... extraArgs) {
         String[] args = new String[extraArgs.length + 3];
         args[0] = "--deterministic";

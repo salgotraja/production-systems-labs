@@ -4,6 +4,28 @@
 
 ### Added
 
+**Series 3: Failure Propagation in Microservices - Post 2**
+
+- Post 2 "Retry Storms and Amplification" (`runRetryStorms` + `runPost2` alias)
+  - `retrystorm`: `RetryPolicy` (attempts per hop, per-call timeout, backoff; retry on any
+    error - the naive policy the experiment indicts)
+  - `retrystorm`: `RetryStormSimulator` - call-tree event loop where every downstream attempt
+    is a node; timeout generations prevent a stale timeout from double-retrying after a fast
+    response; abandoned callers keep retrying (abandonment gates only the upward notify) -
+    the mechanism that compounds R attempts per hop into R^2 leaf attempts
+  - `retrystorm`: `RetryStormScenario` - amplification sweep (R x healthy/hard-down;
+    amplification measured over roots whose full retry tree fits the window: exactly 1/4/9,
+    then 14.55 at R=4 where the storm saturates even a 200-worker middle tier) + transient
+    1s degradation timeline (R=3 rescues clients at a 6x database attempt-rate spike where
+    R=1 fails six windows)
+  - `cascade`: additive `ServiceTime.degradedBetween` factory (transient degradation with
+    recovery; Post 1 golden untouched)
+  - `charting`: `StormChartGenerator` - storm attempt-rate, rescue, and R^2 amplification PNGs
+  - Golden files in `golden/fp-post2/`; CI report step extended
+  - Tests: hand-computed micro-cases (exact spawn counts and resolution times), stale-timeout
+    invalidation, abandoned-keeps-retrying, rescue-at-amplified-cost timeline, golden
+    regression, registry (2 experiments)
+
 **Series 3: Failure Propagation in Microservices - Post 1**
 
 - New `failure-propagation-lab` Gradle module (mirrors `backpressure-playground` plumbing:

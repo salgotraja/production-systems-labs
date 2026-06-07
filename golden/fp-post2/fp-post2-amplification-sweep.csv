@@ -1,0 +1,9 @@
+mode,attempts_per_hop,success_pct,db_attempts_per_request,db_attempts_rps,p99_resolution_ms
+healthy,1,100.0,1.00,50.0,20.0
+healthy,2,100.0,1.00,50.0,20.0
+healthy,3,100.0,1.00,50.0,20.0
+healthy,4,100.0,1.00,50.0,20.0
+degraded,1,0.0,1.00,50.0,405.0
+degraded,2,0.0,4.00,182.2,855.0
+degraded,3,0.0,9.00,369.4,1305.0
+degraded,4,0.0,14.55,379.4,1755.0

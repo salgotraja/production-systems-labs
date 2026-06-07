@@ -29,7 +29,10 @@ What transfers to production is the mechanism, not the numbers:
   worker pool* are sufficient, and the blast crosses to routes that never touch the slow service
   (Post 1);
 - the backlog stacks *upstream* of the bottleneck: the slow service's own queue can read near
-  zero while its callers drown (Post 1).
+  zero while its callers drown (Post 1);
+- per-hop retries compound multiplicatively - R attempts at each of d hops is up to R^d attempts
+  at the bottom; a retry is a bet that the failure is transient, rescuing real clients when it
+  is and buying pure load when it is not (Post 2).
 
 ---
 
@@ -118,3 +121,93 @@ the victims queue upstream).
 | `cascade/CascadeScenario.java` | The degradation sweep and the mid-run degradation timeline |
 | `charting/CascadeChartGenerator.java` | XChart PNGs for the sweep and timeline charts |
 | `CascadingFailuresMain.java` | Entry point: CSVs, charts, manifest, report |
+
+---
+
+## Post 2: Retry Storms and Amplification
+
+**TL;DR**
+- Per-hop retries compound multiplicatively: R attempts at each retrying hop becomes up to
+  R^2 attempts at the bottom of a two-edge chain (R^d for depth d) - one client request,
+  nine database attempts
+- A retry is a bet that the failure is transient: against a 1s blip the bet wins (clients held
+  at ~100% where no-retry reads 0%) at a 6x database-load spike; against a hard-down dependency
+  the bet loses completely - R^2 load, zero successes
+- The caller that times out walks away, but its callee doesn't know and keeps retrying -
+  abandoned work is what turns a slowdown into a storm
+
+Series 2 Post 1 showed *client* retries amplifying load on a single server; Post 2's new thing
+is the mesh doing it to itself, multiplicatively, hop by hop. The per-call timeout here is
+deliberately uniform (400ms everywhere) - a caller gives up while its callee's own ~1300ms
+retry budget keeps running. Why and how to coordinate timeouts is Post 4's lesson.
+
+### Run it
+
+```bash
+./gradlew :failure-propagation-lab:runRetryStorms -Pargs="--deterministic --duration 5s --output-dir ./results/retry-storms"
+```
+
+The model is a fully synthetic, single-threaded discrete-event simulation, so output is
+byte-for-byte reproducible. `--concurrency` and `--snapshot-interval` are accepted for CLI
+consistency but do not affect this experiment.
+
+### What it models
+
+A three-service chain - `frontend` -> `service-a` -> `database` - with 50 rps of client demand
+and no client retry. Both non-leaf hops apply the same naive policy: per-call timeout 400ms,
+retry on timeout or failure, 50ms backoff, R attempts. The upper tiers are deliberately
+over-provisioned (pools of 200; Post 1 covered what under-provisioned shared pools do), so the
+amplified load reaches the database unthrottled. Two experiments:
+
+1. **The amplification sweep** - R in {1,2,3,4} against a healthy (10ms) and a hard-down
+   (500ms, deliberately past the 400ms timeout) database. Amplification is measured over
+   requests old enough for their full retry tree to finish inside the window.
+2. **The storm timeline** - the database degrades transiently (1.5s to 2.5s) and recovers;
+   client success and database attempt rate are sampled per 100ms window for R=1 vs R=3.
+
+### Expected golden output (deterministic, 5s)
+
+Amplification sweep:
+
+| Mode | R | Success% | DB attempts/request | DB attempts rps | p99 resolution |
+|---|--:|---------:|--------------------:|----------------:|---------------:|
+| healthy | 1-4 | 100.0 | 1.00 | 50 | 20 |
+| hard-down | 1 | 0.0 | 1.00 | 50 | 405 |
+| hard-down | 2 | 0.0 | **4.00** | 182 | 855 |
+| hard-down | 3 | 0.0 | **9.00** | 369 | 1305 |
+| hard-down | 4 | 0.0 | **14.55** | 379 | 1755 |
+
+Healthy rows are identical at every R: a retry that never fires costs nothing. Hard-down rows
+show the compounding - exactly R^2 at R=2 and R=3, and the R=4 bend is signal, not noise: the
+amplified load saturates even a 200-worker middle tier, which then throttles the storm itself.
+The success column never moves off zero; the p99 column is the time clients wait to be told
+nothing (the full retry budget, 405ms -> 1755ms).
+
+Storm timeline: the no-retry run fails hard for ~600ms of the 1s blip (six 0% windows) and its
+database load never moves off 50 rps. The R=3 run fails only the two onset windows - requests
+caught at the wavefront pay the full exploration cost - then holds ~100% through the rest of
+the degradation. The price: database attempts climb 50 -> 150 -> 300 rps (6x) and stay there
+for ~700ms. Retries rescued the transient and would have hammered a sustained failure with the
+same enthusiasm; nothing in the policy can tell those situations apart. That discrimination is
+the circuit breaker's job - Post 3.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `fp-post2-amplification-sweep.csv` | One row per (mode, attempts-per-hop) - golden contract |
+| `fp-post2-storm-timeline.csv` | Per-100ms-window success + db attempt rate, R=1 vs R=3 - golden contract |
+| `fp-post2-storm-timeline.png` | Database attempt rate through the blip: the 6x spike |
+| `fp-post2-rescue.png` | Client success through the blip: the won bet |
+| `fp-post2-amplification.png` | DB attempts per request vs R: flat at 1 healthy, ~R^2 hard-down |
+| `manifest.json` / `report.html` | Run receipt and self-contained HTML report |
+
+### Key source files
+
+| File | Role |
+|---|---|
+| `retrystorm/RetryPolicy.java` | Attempts per hop, per-call timeout, backoff - retry on any error |
+| `retrystorm/RetryStormSimulator.java` | Call-tree event loop; abandoned callers keep retrying |
+| `retrystorm/RetryStormScenario.java` | The amplification sweep and the transient-degradation timeline |
+| `charting/StormChartGenerator.java` | XChart PNGs for the storm, rescue, and amplification charts |
+| `RetryStormsMain.java` | Entry point: CSVs, charts, manifest, report |

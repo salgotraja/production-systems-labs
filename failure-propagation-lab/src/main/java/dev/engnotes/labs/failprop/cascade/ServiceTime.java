@@ -45,4 +45,19 @@ public interface ServiceTime {
         }
         return startMs -> startMs < thresholdMs ? healthyMs : degradedMs;
     }
+
+    /**
+     * A transient degradation: {@code degradedMs} inside {@code [fromMs, toMs)}, healthy
+     * outside it. Models a dependency that goes slow and then <em>recovers</em> - what reveals
+     * whether the load the failure generated outlives the failure itself.
+     */
+    static ServiceTime degradedBetween(double fromMs, double toMs, long healthyMs, long degradedMs) {
+        if (healthyMs <= 0 || degradedMs <= 0) {
+            throw new IllegalArgumentException("service times must be > 0");
+        }
+        if (fromMs >= toMs) {
+            throw new IllegalArgumentException("fromMs must be < toMs");
+        }
+        return startMs -> startMs >= fromMs && startMs < toMs ? degradedMs : healthyMs;
+    }
 }
