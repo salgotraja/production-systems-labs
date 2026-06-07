@@ -45,7 +45,7 @@ import java.util.List;
  * <p>Not thread-safe by design: the simulation is single-threaded, and the live mode wraps the
  * instance in a synchronized adapter at the call site.
  */
-public final class CircuitBreaker {
+public final class CircuitBreaker implements EdgeBreaker {
 
     /** Breaker states; the transition log records every change for the experiment's timeline. */
     public enum State { CLOSED, OPEN, HALF_OPEN }
@@ -75,6 +75,7 @@ public final class CircuitBreaker {
      * The open-to-half-open transition happens here, on the first call after the open period -
      * a breaker with no traffic has nothing to probe with.
      */
+    @Override
     public boolean allow(double nowMs) {
         return switch (state) {
             case CLOSED -> true;
@@ -98,6 +99,7 @@ public final class CircuitBreaker {
     }
 
     /** Report a successful call outcome observed at {@code nowMs}. */
+    @Override
     public void onSuccess(double nowMs) {
         switch (state) {
             case CLOSED -> record(true);
@@ -113,6 +115,7 @@ public final class CircuitBreaker {
     }
 
     /** Report a failed call outcome (timeout or error response) observed at {@code nowMs}. */
+    @Override
     public void onFailure(double nowMs) {
         switch (state) {
             case CLOSED -> {
@@ -138,6 +141,7 @@ public final class CircuitBreaker {
     }
 
     /** Every state change so far, oldest first. */
+    @Override
     public List<Transition> transitions() {
         return Collections.unmodifiableList(transitions);
     }

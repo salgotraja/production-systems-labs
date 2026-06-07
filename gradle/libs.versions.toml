@@ -2,6 +2,8 @@
 hdrhistogram      = "2.2.2"
 xchart            = "3.8.8"
 resilience4j      = "2.2.0"
+javalin           = "6.3.0"
+slf4j             = "2.0.16"
 junit             = "5.11.4"
 junit-platform    = "1.11.4"
 
@@ -10,6 +12,9 @@ hdrhistogram      = { module = "org.hdrhistogram:HdrHistogram",            versi
 xchart            = { module = "org.knowm.xchart:xchart",                  version.ref = "xchart" }
 resilience4j-core = { module = "io.github.resilience4j:resilience4j-core", version.ref = "resilience4j" }
 resilience4j-ratelimiter = { module = "io.github.resilience4j:resilience4j-ratelimiter", version.ref = "resilience4j" }
+resilience4j-circuitbreaker = { module = "io.github.resilience4j:resilience4j-circuitbreaker", version.ref = "resilience4j" }
+javalin           = { module = "io.javalin:javalin",                       version.ref = "javalin" }
+slf4j-simple      = { module = "org.slf4j:slf4j-simple",                   version.ref = "slf4j" }
 
 junit-bom         = { module = "org.junit:junit-bom",                      version.ref = "junit" }
 junit-jupiter     = { module = "org.junit.jupiter:junit-jupiter",           version.ref = "junit" }

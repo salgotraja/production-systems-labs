@@ -70,7 +70,7 @@ public final class BreakerStormSimulator {
 
     private final Map<String, ServiceConfig> services;
     private final RetryPolicyView policy;
-    private final Map<String, CircuitBreaker> breakers;
+    private final Map<String, EdgeBreaker> breakers;
 
     /**
      * Local mirror of Post 2's retry policy fields (kept module-internal so this package does
@@ -91,7 +91,7 @@ public final class BreakerStormSimulator {
      *                 means no protection anywhere (the naive baseline)
      */
     public BreakerStormSimulator(
-            List<ServiceConfig> services, RetryPolicyView policy, Map<String, CircuitBreaker> breakers) {
+            List<ServiceConfig> services, RetryPolicyView policy, Map<String, EdgeBreaker> breakers) {
         if (services == null || services.isEmpty()) {
             throw new IllegalArgumentException("services must not be empty");
         }
@@ -286,7 +286,7 @@ public final class BreakerStormSimulator {
             Node node = nodes.get(index);
             node.currentAttempt = attempt;
             node.generation++;
-            CircuitBreaker breaker = breakerFor(node);
+            EdgeBreaker breaker = breakerFor(node);
             if (breaker != null && !breaker.allow(timeMs)) {
                 // Fail fast: the attempt is consumed without ever touching the downstream.
                 // No outcome is recorded - the breaker is rejecting, not observing.
@@ -374,13 +374,13 @@ public final class BreakerStormSimulator {
             }
         }
 
-        CircuitBreaker breakerFor(Node node) {
+        EdgeBreaker breakerFor(Node node) {
             List<String> chain = chains.get(node.route);
             return breakers.get(chain.get(node.hop) + "->" + chain.get(node.hop + 1));
         }
 
         void reportOutcome(Node node, boolean ok, double timeMs) {
-            CircuitBreaker breaker = breakerFor(node);
+            EdgeBreaker breaker = breakerFor(node);
             if (breaker == null) {
                 return;
             }
@@ -462,7 +462,7 @@ public final class BreakerStormSimulator {
 
             Map<String, List<CircuitBreaker.Transition>> transitionLog = new LinkedHashMap<>();
             Map<String, List<Integer>> stateLog = new LinkedHashMap<>();
-            for (Map.Entry<String, CircuitBreaker> entry : breakers.entrySet()) {
+            for (Map.Entry<String, EdgeBreaker> entry : breakers.entrySet()) {
                 transitionLog.put(entry.getKey(), List.copyOf(entry.getValue().transitions()));
                 stateLog.put(entry.getKey(), stateAtWindowStarts(entry.getValue()));
             }
@@ -477,7 +477,7 @@ public final class BreakerStormSimulator {
         }
 
         /** Breaker state at each window start, reconstructed from the transition log. */
-        private List<Integer> stateAtWindowStarts(CircuitBreaker breaker) {
+        private List<Integer> stateAtWindowStarts(EdgeBreaker breaker) {
             List<CircuitBreaker.Transition> transitions = breaker.transitions();
             List<Integer> result = new ArrayList<>(windowCount);
             int next = 0;

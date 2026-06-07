@@ -24,6 +24,9 @@ dependencies {
     implementation(project(":lab-commons"))
     implementation(libs.hdrhistogram)
     implementation(libs.xchart)
+    implementation(libs.resilience4j.circuitbreaker)
+    implementation(libs.javalin)
+    runtimeOnly(libs.slf4j.simple)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)

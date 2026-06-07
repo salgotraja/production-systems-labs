@@ -95,6 +95,7 @@ public final class BreakerStormScenario {
         List<BreakerSweepPoint> sweep = new ArrayList<>(2);
         sweep.add(sweepPoint("naive-retry", Map.of(), durationMs));
         sweep.add(sweepPoint("with-breaker", chainBreakers(), durationMs));
+        sweep.add(sweepPoint("resilience4j", r4jChainBreakers(), durationMs));
 
         BreakerStormSimulator.BreakerOutcome naive = new BreakerStormSimulator(
                 blastTopology(), RETRY_POLICY, Map.of())
@@ -121,15 +122,15 @@ public final class BreakerStormScenario {
         return new RouteDemand("checkout", List.of("frontend", "service-a", "database"), ROUTE_RATE_RPS);
     }
 
-    static Map<String, CircuitBreaker> chainBreakers() {
-        Map<String, CircuitBreaker> breakers = new LinkedHashMap<>();
+    static Map<String, EdgeBreaker> chainBreakers() {
+        Map<String, EdgeBreaker> breakers = new LinkedHashMap<>();
         breakers.put(EDGE_FRONTEND_A, new CircuitBreaker(BREAKER_CONFIG));
         breakers.put(EDGE_A_DATABASE, new CircuitBreaker(BREAKER_CONFIG));
         return breakers;
     }
 
     private static BreakerSweepPoint sweepPoint(
-            String policy, Map<String, CircuitBreaker> breakers, long durationMs) {
+            String policy, Map<String, EdgeBreaker> breakers, long durationMs) {
         BreakerStormSimulator.BreakerOutcome outcome = new BreakerStormSimulator(
                 chainTopology(ServiceTime.constant(DB_DEGRADED_MS)), RETRY_POLICY, breakers)
                 .run(List.of(chainRoute()), durationMs, CLIENT_DEADLINE_MS, WINDOW_MS);
@@ -182,8 +183,16 @@ public final class BreakerStormScenario {
                 new RouteDemand("route-b", List.of("frontend", "service-b"), ROUTE_RATE_RPS));
     }
 
-    static Map<String, CircuitBreaker> blastBreakers() {
-        Map<String, CircuitBreaker> breakers = new LinkedHashMap<>();
+    /** The same edges guarded by the real Resilience4j breaker through the synthetic-clock adapter. */
+    static Map<String, EdgeBreaker> r4jChainBreakers() {
+        Map<String, EdgeBreaker> breakers = new LinkedHashMap<>();
+        breakers.put(EDGE_FRONTEND_A, new Resilience4jBreakerAdapter("frontend-a", BREAKER_CONFIG));
+        breakers.put(EDGE_A_DATABASE, new Resilience4jBreakerAdapter("a-database", BREAKER_CONFIG));
+        return breakers;
+    }
+
+    static Map<String, EdgeBreaker> blastBreakers() {
+        Map<String, EdgeBreaker> breakers = new LinkedHashMap<>();
         breakers.put(EDGE_FRONTEND_A, new CircuitBreaker(BREAKER_CONFIG));
         breakers.put(EDGE_FRONTEND_B, new CircuitBreaker(BREAKER_CONFIG));
         breakers.put(EDGE_A_DATABASE, new CircuitBreaker(BREAKER_CONFIG));

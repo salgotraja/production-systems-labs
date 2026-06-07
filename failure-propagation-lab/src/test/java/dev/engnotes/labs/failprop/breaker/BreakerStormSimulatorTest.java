@@ -37,14 +37,14 @@ class BreakerStormSimulatorTest {
     private static final long BLAST_DEADLINE_MS = BreakerStormScenario.BLAST_DEADLINE_MS;
     private static final long WINDOW_MS = BreakerStormScenario.WINDOW_MS;
 
-    private static BreakerStormSimulator.BreakerOutcome hardDown(Map<String, CircuitBreaker> breakers) {
+    private static BreakerStormSimulator.BreakerOutcome hardDown(Map<String, EdgeBreaker> breakers) {
         return new BreakerStormSimulator(
                 BreakerStormScenario.chainTopology(ServiceTime.constant(BreakerStormScenario.DB_DEGRADED_MS)),
                 BreakerStormScenario.RETRY_POLICY, breakers)
                 .run(List.of(BreakerStormScenario.chainRoute()), DURATION_MS, SWEEP_DEADLINE_MS, WINDOW_MS);
     }
 
-    private static BreakerStormSimulator.BreakerOutcome blast(Map<String, CircuitBreaker> breakers) {
+    private static BreakerStormSimulator.BreakerOutcome blast(Map<String, EdgeBreaker> breakers) {
         return new BreakerStormSimulator(
                 BreakerStormScenario.blastTopology(), BreakerStormScenario.RETRY_POLICY, breakers)
                 .run(BreakerStormScenario.blastRoutes(), DURATION_MS, BLAST_DEADLINE_MS, WINDOW_MS);
