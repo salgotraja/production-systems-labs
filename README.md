@@ -46,16 +46,45 @@ cd production-systems-labs
 
 Every run writes `manifest.json` and `report.html` next to the CSV/PNG outputs. The report is self-contained HTML: it embeds the manifest and CSV data, opens directly from `file://`, has no server or external JavaScript dependency, and exposes truth controls for measurement mode, hedging state, and metric view when the data supports them.
 
+## Series 2 - Backpressure & Load Control (`backpressure-playground`)
+
+| Post | Topic | Gradle Task | Deterministic result |
+|------|-------|-------------|----------------------|
+| 1 | Why Systems Collapse Under Load | `./gradlew :backpressure-playground:runLoadCollapse` | capacity `100` rps; goodput collapses to `7.8` rps at 200 rps offered; retries push effective load to `716.6` rps |
+| 2 | Admission Control Design | `./gradlew :backpressure-playground:runAdmissionControl` | sweet spot at limit `20` (Little's Law) goodput `99.8` rps; admission control holds `~100` rps where no control collapses to `7.8` |
+| 3 | Token Bucket vs Leaky Bucket | `./gradlew :backpressure-playground:runTokenVsLeaky` | same goodput from both gates at every burst size; at budget `20` the p99 wait is `190` ms at the server (token) vs `190` ms at the gate (leaky); downstream peak `290` vs `100` rps |
+| 4 | Load Shedding Strategies | `./gradlew :backpressure-playground:runLoadShedding` | at 2x capacity all shedding policies hold goodput `100` rps vs fifo's `7.8`; the fingerprints: tail-drop sheds in `0` ms, expire in `~195` ms, lifo never tells (p99-of-served `200` / `200` / `10` ms) |
+| 5 | Bounded Systems + SLO-Driven Load Control | `./gradlew :backpressure-playground:runSloLoadControl` | blind shedding degrades critical and background in lockstep (`51`/`52`% at 2x); a priority door holds critical success at `~100`% until the `400` rps protection ceiling while p99 reads a deadline-flat `200` ms for both |
+
+```bash
+./gradlew :backpressure-playground:runLoadCollapse -Pargs="--deterministic --duration 5s --output-dir ./results/load-collapse"
+./gradlew :backpressure-playground:runAdmissionControl -Pargs="--deterministic --duration 5s --output-dir ./results/admission-control"
+./gradlew :backpressure-playground:runTokenVsLeaky -Pargs="--deterministic --duration 5s --output-dir ./results/token-vs-leaky"
+./gradlew :backpressure-playground:runLoadShedding -Pargs="--deterministic --duration 5s --output-dir ./results/load-shedding"
+./gradlew :backpressure-playground:runSloLoadControl -Pargs="--deterministic --duration 5s --output-dir ./results/slo-load-control"
+```
+
+Series 2 golden files live under `golden/bp-post{N}/`. Series 2 posts emit their own sweep CSV
+schemas (one row per swept level) rather than the per-second ADR-005 schema, because they sweep
+offered-load, admission-limit, or burst-dimension levels instead of time.
+
+These are deterministic **synthetic lab experiments**: the numbers are real model output (golden-
+tested), but the models are intentionally simple (single server, fixed service time, deterministic
+arrivals). The absolute figures are artifacts of the chosen constants; what transfers to production
+is the mechanism, not the numbers. See the [module README](backpressure-playground/README.md) for
+the full caveat.
+
 ## Repository Structure
 
 ```
 production-systems-labs/
 ├── build.gradle.kts          # root: group/version only
-├── settings.gradle.kts       # includes lab-commons + latency-lab
+├── settings.gradle.kts       # includes lab-commons + latency-lab + backpressure-playground
 ├── gradle/libs.versions.toml # pinned dependency versions
 ├── buildSrc/                 # shared Java 25 convention plugin
 ├── lab-commons/              # shared: histogram, csv, cli, terminal, concurrency
 ├── latency-lab/              # Series 1 (6 posts)
+├── backpressure-playground/  # Series 2 (Posts 1-5, complete)
 ├── golden/                   # reference output for golden file tests
 └── .github/workflows/        # build + golden CSV regression tests
 ```

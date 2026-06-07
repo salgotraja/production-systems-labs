@@ -42,10 +42,30 @@ public final class ExperimentManifest {
             List<CsvArtifact> csvArtifacts,
             Path manifestPath) throws IOException {
 
+        write(postNumber, title, args, commandArgs, csvArtifacts, manifestPath,
+                Path.of("golden", "post" + postNumber));
+    }
+
+    /**
+     * Writes the manifest, resolving each artifact's golden reference under {@code goldenDir}.
+     * <p>
+     * Series 1 (latency-lab) uses the {@code golden/post{N}} convention via the overload above.
+     * Later series pass an explicit directory (e.g. {@code golden/bp-post1}) so multiple series
+     * can share the {@code golden/} root without post-number collisions.
+     */
+    public static void write(
+            int postNumber,
+            String title,
+            CliArgs args,
+            String[] commandArgs,
+            List<CsvArtifact> csvArtifacts,
+            Path manifestPath,
+            Path goldenDir) throws IOException {
+
         Files.createDirectories(manifestPath.getParent() != null ? manifestPath.getParent() : Path.of("."));
         Files.writeString(
                 manifestPath,
-                toJson(postNumber, title, args, commandArgs, csvArtifacts),
+                toJson(postNumber, title, args, commandArgs, csvArtifacts, goldenDir),
                 StandardCharsets.UTF_8);
     }
 
@@ -54,7 +74,8 @@ public final class ExperimentManifest {
             String title,
             CliArgs args,
             String[] commandArgs,
-            List<CsvArtifact> csvArtifacts) throws IOException {
+            List<CsvArtifact> csvArtifacts,
+            Path goldenDir) throws IOException {
 
         StringBuilder json = new StringBuilder();
         json.append("{\n");
@@ -85,7 +106,7 @@ public final class ExperimentManifest {
         json.append("  \"csv_artifacts\": [\n");
         for (int i = 0; i < csvArtifacts.size(); i++) {
             CsvArtifact artifact = csvArtifacts.get(i);
-            Path golden = Path.of("golden", "post" + postNumber, artifact.path().getFileName().toString());
+            Path golden = goldenDir.resolve(artifact.path().getFileName().toString());
             json.append("    {");
             json.append("\"name\": ").append(quote(artifact.name())).append(", ");
             json.append("\"file\": ").append(quote(artifact.path().getFileName().toString())).append(", ");

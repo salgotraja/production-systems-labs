@@ -1,5 +1,117 @@
 # Changelog
 
+## [Unreleased] - 2026-06-06
+
+### Added
+
+**Series 2: Backpressure & Load Control - Post 5 (series complete)**
+
+- Post 5 "Bounded Systems Architecture + SLO-Driven Load Control" in `backpressure-playground`
+  - `slocontrol`: `ClassPolicy` - blind vs priority (a critical arrival evicts the newest
+    queued background request when the bounded system is full)
+  - `slocontrol`: `SloControlSimulator` - the assembled bounded system (Post 2 door bound +
+    Post 4 dequeue expiry) serving two criticality classes; success-rate SLO scoring (served
+    latency is deadline-flat by construction, so a latency SLO cannot tell the policies apart);
+    fixed-seed pseudo-random class interleave (periodic patterns phase-lock with the service
+    cadence); scoring window excludes arrivals without a full deadline left
+  - `slocontrol`: `SloControlScenario` (protection sweep across the 400 rps ceiling + burst
+    time series), `SloPointResult`, `SloWindowSample`, `SloRunResult`
+  - `charting`: `SloControlChartGenerator` - burst hero chart and protection-ceiling sweep
+  - `SloLoadControlMain` topic entry point; Gradle task `runSloLoadControl` (+ `runPost5` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post5/`; capstone-invariant, golden, and registry tests
+  - CI generates + uploads the Post 5 report alongside Posts 1-4
+
+**Series 2: Backpressure & Load Control - Post 4**
+
+- Post 4 "Load Shedding Strategies" in `backpressure-playground`
+  - `shedding`: `ShedPolicy` - the four policies as pick order + door bound + dequeue expiry
+    (fifo / tail-drop / expire / lifo)
+  - `shedding`: `ShedSimulator` - deterministic event-loop model (dequeue policies break the
+    closed-form forward pass); splits outcomes into goodput / served-late / shed, p99-of-served,
+    and the shed-wait fast/slow/never spectrum; no post-window drain
+  - `shedding`: `SheddingScenario` (offered-load sweep + burst-hangover time series),
+    `ShedPointResult`, `ShedWindowSample`, `ShedRunResult`
+  - `charting`: `SheddingChartGenerator` - burst-hangover and p99-of-served sweep PNGs (log axis)
+  - `LoadSheddingMain` topic entry point; Gradle task `runLoadShedding` (+ `runPost4` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post4/`; policy-invariant, golden, and registry tests
+  - CI generates + uploads the Post 4 report alongside Posts 1-3
+
+**Series 2: Backpressure & Load Control - Post 3**
+
+- Post 3 "Token Bucket vs Leaky Bucket" in `backpressure-playground`
+  - `shaping`: `RateGate` contract plus `TokenBucketGate` (policing: banked tokens, immediate
+    release) and `LeakyBucketGate` (shaping: paced release, bounded gate queue)
+  - `shaping`: `ShapingSimulator` - gate + the Posts 1-2 single-server FIFO; splits the p99 wait
+    by where it happened (gate delay vs server wait) and tracks the peak downstream rate
+  - `shaping`: `ShapingScenario` (burst-dimension sweep + downstream-rate time series),
+    `ShapingPointResult`, `ShapingWindowSample`, `ShapingRunResult`
+  - `charting`: `ShapingChartGenerator` - policing-vs-shaping time series and peak-downstream-rate
+    sweep PNGs
+  - `TokenVsLeakyMain` topic entry point; Gradle task `runTokenVsLeaky` (+ `runPost3` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post3/`; gate-invariant, golden, and registry tests
+  - CI generates + uploads the Post 3 report alongside Posts 1-2
+
+### Changed
+
+- `backpressure-playground/README.md`: Posts 3-5 sections with deterministic expected
+  results; transferable-lessons list extended
+- `README.md`: Series 2 table rows and run commands for Posts 3-5
+- `.github/workflows/ci.yml`: Posts 3-5 report generation in the
+  backpressure-playground report step
+- `.idea/gradle.xml`: registered the `backpressure-playground` module
+
+### Fixed
+
+- `backpressure-playground` input guards: `SloControlSimulator` rejects run windows
+  shorter than the client deadline (previously crashed in the burst series or silently
+  inflated rates), `CollapseSimulator` rejects non-positive offered load (previously
+  looped forever), and all five chart generators tolerate a parent-less `--output-dir`
+  like the CSV writers already did
+- `backpressure-playground/README.md`: Post 4 shed-wait p50 table cells corrected to the
+  golden CSV values (fifo 1250, lifo 2495)
+
+## [Unreleased] - 2026-06-03
+
+### Added
+
+**Series 2: Backpressure & Load Control - Post 2**
+
+- Post 2 "Admission Control Design" in `backpressure-playground`
+  - `admission`: `AdmissionSimulator` - single-server FIFO fronted by a concurrency limit
+    (fail-fast reject); the antidote to Post 1's collapse
+  - `admission`: `DemandCurve` (deterministic bursty/constant offered-load schedule),
+    `AdmissionScenario` (limit sweep + offered-load plateau), `AdmissionPointResult`,
+    `AdmissionRunResult`
+  - `charting`: `AdmissionChartGenerator` - sweet-spot (goodput/utilization vs limit) and
+    plateau-restored (goodput vs offered load) PNGs
+  - `AdmissionControlMain` topic entry point; Gradle task `runAdmissionControl` (+ `runPost2` alias)
+  - Golden CSV/PNG artifacts under `golden/bp-post2/`; simulator-invariant, golden, and registry tests
+  - CI generates + uploads the Post 2 report alongside Post 1
+
+**Series 2: Backpressure & Load Control - Post 1**
+
+- `backpressure-playground` module with Post 1 "Why Systems Collapse Under Load"
+  - `collapse`: `CollapseSimulator` - deterministic discrete-event model of an unmanaged
+    single-server service; encodes service-then-discard (the server burns a slot on work whose
+    client already gave up) and client-retry re-injection (the retry-storm death spiral)
+  - `collapse`: `CollapseScenario` (offered-load sweep, with/without retries), `LoadLevelResult`,
+    `CollapseRunResult`
+  - `charting`: `CollapseChartGenerator` - goodput collapse cliff and retry-storm amplification PNGs
+  - `LoadCollapseMain` topic entry point; Gradle task `runLoadCollapse` (+ `runPost1` alias)
+  - Module-local experiment plumbing (`ExperimentRegistry`, `ExperimentDefinition`, `PostArtifacts`,
+    `ArtifactWriteException`) keeping each lab self-contained
+- Golden CSV/PNG reference artifacts under `golden/bp-post1/` (flat per-series naming)
+- Golden CSV regression test, simulator-invariant tests, and registry tests for Series 2 Post 1
+- Deterministic CI report artifact generation + upload for `backpressure-playground`
+
+### Changed
+
+- `lab-commons` `ExperimentManifest`: added a `write(...)` overload accepting an explicit golden
+  directory so multiple series share the `golden/` root without post-number collisions; the
+  existing `golden/post{N}` behaviour is unchanged
+- `settings.gradle.kts`: included `backpressure-playground`
+- `README.md`: added the Series 2 overview and repository-structure entry
+
 ## [Unreleased] - 2026-05-30
 
 ### Added
