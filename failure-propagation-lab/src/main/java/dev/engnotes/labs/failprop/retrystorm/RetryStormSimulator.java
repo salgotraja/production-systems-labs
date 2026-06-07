@@ -321,13 +321,18 @@ public final class RetryStormSimulator {
             if (node.state != STATE_WAITING) {
                 throw new IllegalStateException("response delivered to a node that is not waiting");
             }
+            if (!childOk) {
+                // Under a uniform per-call timeout this is unreachable: a child can only fail
+                // by exhausting its own retry budget, which always outlasts its parent's
+                // timeout by the child's own-work margin - so the parent has already abandoned
+                // it and the notify is skipped. Asserted so that adding per-hop policies later
+                // trips loudly here instead of silently double-counting retries.
+                throw new IllegalStateException(
+                        "fail-response is unreachable under a uniform per-call timeout");
+            }
             node.activeChild = -1;
             node.generation++; // invalidate the pending timeout for this attempt
-            if (childOk) {
-                finish(index, true, timeMs);
-            } else {
-                retryOrFail(index, timeMs);
-            }
+            finish(index, true, timeMs);
         }
 
         void release(ServiceState state, double timeMs) {
