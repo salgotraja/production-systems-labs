@@ -123,6 +123,27 @@ class BreakerStormSimulatorTest {
     }
 
     @Test
+    void resilience4jBehavesExactlyLikeTheHandRolledBreaker() {
+        // The library comparison's real claim, asserted directly rather than only through the
+        // golden CSV: driven by the same outcome sequence, Resilience4j trips, opens, probes,
+        // and closes at the same instants as the hand-rolled breaker. This is the cross-check
+        // that does not depend on byte-stable CSV formatting across platforms.
+        BreakerStormSimulator.BreakerOutcome handRolled = hardDown(BreakerStormScenario.chainBreakers());
+        BreakerStormSimulator.BreakerOutcome resilience4j = hardDown(BreakerStormScenario.r4jChainBreakers());
+
+        for (String edge : List.of(BreakerStormScenario.EDGE_FRONTEND_A, BreakerStormScenario.EDGE_A_DATABASE)) {
+            assertEquals(handRolled.breakerTransitions().get(edge),
+                    resilience4j.breakerTransitions().get(edge),
+                    "edge " + edge + " must transition identically under both breakers");
+        }
+        assertEquals(handRolled.attemptsByService(), resilience4j.attemptsByService(),
+                "both breakers admit the same downstream attempts");
+        assertEquals(handRolled.routes().get(0).p99ResolutionMs(),
+                resilience4j.routes().get(0).p99ResolutionMs(),
+                "both breakers produce the same client-observed latency");
+    }
+
+    @Test
     void outputIsDeterministic() {
         assertEquals(blast(BreakerStormScenario.blastBreakers()), blast(BreakerStormScenario.blastBreakers()),
                 "identical inputs must produce identical results");
