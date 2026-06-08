@@ -72,6 +72,7 @@ public final class BreakerStormSimulator {
     private final RetryPolicyView policy;
     private final Map<String, EdgeBreaker> breakers;
     private final TimeoutBudget budget;
+    private final Map<String, int[]> bulkhead;
 
     /**
      * Local mirror of Post 2's retry policy fields (kept module-internal so this package does
@@ -93,16 +94,25 @@ public final class BreakerStormSimulator {
      */
     public BreakerStormSimulator(
             List<ServiceConfig> services, RetryPolicyView policy, Map<String, EdgeBreaker> breakers) {
-        this(services, policy, breakers, null);
+        this(services, policy, breakers, null, Map.of());
     }
 
-    /**
-     * @param budget propagated deadline that gates downstream calls, or {@code null} for no
-     *               budgeting (uncoordinated per-call timeouts only - the Posts 2-3 behaviour)
-     */
     public BreakerStormSimulator(
             List<ServiceConfig> services, RetryPolicyView policy, Map<String, EdgeBreaker> breakers,
             TimeoutBudget budget) {
+        this(services, policy, breakers, budget, Map.of());
+    }
+
+    /**
+     * @param budget   propagated deadline that gates downstream calls, or {@code null} for no
+     *                 budgeting (uncoordinated per-call timeouts only - the Posts 2-3 behaviour)
+     * @param bulkhead per-route concurrency limits keyed by service name (the limit array is
+     *                 indexed by route order); an absent service runs as a single shared pool,
+     *                 and an empty map means no bulkheading anywhere
+     */
+    public BreakerStormSimulator(
+            List<ServiceConfig> services, RetryPolicyView policy, Map<String, EdgeBreaker> breakers,
+            TimeoutBudget budget, Map<String, int[]> bulkhead) {
         if (services == null || services.isEmpty()) {
             throw new IllegalArgumentException("services must not be empty");
         }
@@ -116,6 +126,9 @@ public final class BreakerStormSimulator {
         this.policy = policy;
         this.breakers = Map.copyOf(breakers);
         this.budget = budget;
+        Map<String, int[]> copy = new LinkedHashMap<>();
+        bulkhead.forEach((service, limits) -> copy.put(service, limits.clone()));
+        this.bulkhead = copy;
     }
 
     /** Per-route aggregate over scored roots. */
@@ -149,13 +162,34 @@ public final class BreakerStormSimulator {
      * @param windowMs   per-window resolution
      */
     public BreakerOutcome run(List<RouteDemand> routes, long durationMs, long deadlineMs, long windowMs) {
-        validate(routes, durationMs, deadlineMs, windowMs);
+        if (routes == null || routes.isEmpty()) {
+            throw new IllegalArgumentException("routes must not be empty");
+        }
+        long[] perRoute = new long[routes.size()];
+        java.util.Arrays.fill(perRoute, deadlineMs);
+        return run(routes, durationMs, perRoute, windowMs);
+    }
 
-        long scoringCutoffMs = durationMs - deadlineMs;
+    /**
+     * Runs with a <em>per-route</em> client deadline - the realistic case where a slow batch
+     * endpoint and a fast interactive endpoint share a frontend pool but answer to different
+     * SLAs. The success test and scoring window for each route use its own deadline.
+     */
+    public BreakerOutcome run(
+            List<RouteDemand> routes, long durationMs, long[] routeDeadlinesMs, long windowMs) {
+        if (routes == null || routeDeadlinesMs == null || routeDeadlinesMs.length != routes.size()) {
+            throw new IllegalArgumentException("one deadline per route is required");
+        }
+        long maxDeadlineMs = java.util.Arrays.stream(routeDeadlinesMs).max().orElseThrow();
+        validate(routes, durationMs, maxDeadlineMs, windowMs);
+
+        long scoringCutoffMs = durationMs - maxDeadlineMs;
         int windowCount = (int) (scoringCutoffMs / windowMs);
 
         Sim sim = new Sim(routes, windowMs, windowCount);
-        sim.deadlineMs = deadlineMs;
+        sim.deadlineMs = maxDeadlineMs;
+        sim.durationMs = durationMs;
+        sim.routeDeadlines = routeDeadlinesMs.clone();
 
         for (int r = 0; r < routes.size(); r++) {
             double interMs = 1000.0 / routes.get(r).rateRps();
@@ -184,7 +218,7 @@ public final class BreakerStormSimulator {
             }
         }
 
-        return sim.score(deadlineMs, scoringCutoffMs);
+        return sim.score();
     }
 
     // -------------------------------------------------------------------------
@@ -220,8 +254,19 @@ public final class BreakerStormSimulator {
         final ArrayDeque<Integer> queue = new ArrayDeque<>();
         int busy;
 
+        // Bulkhead: when partitioned, each route gets a dedicated concurrency limit and its own
+        // queue, so one route's slow work can exhaust only its own partition - never the share
+        // a sibling route depends on. Null fields mean the service runs as a single shared pool.
+        int[] partitionLimit;
+        int[] partitionBusy;
+        List<ArrayDeque<Integer>> partitionQueue;
+
         ServiceState(ServiceConfig config) {
             this.config = config;
+        }
+
+        boolean bulkheaded() {
+            return partitionLimit != null;
         }
     }
 
@@ -238,6 +283,8 @@ public final class BreakerStormSimulator {
         final Map<String, int[]> windowSpawns = new LinkedHashMap<>();
         final List<Integer> leafAttempts = new ArrayList<>(); // root index per leaf spawn
         long deadlineMs;
+        long durationMs;
+        long[] routeDeadlines;
         long leafSpawnsPastDeadline;
         int rootCount;
         long seq;
@@ -247,8 +294,23 @@ public final class BreakerStormSimulator {
             this.chains = routes.stream().map(RouteDemand::chain).toList();
             this.windowMs = windowMs;
             this.windowCount = windowCount;
+            int routeCount = routes.size();
             for (ServiceConfig config : services.values()) {
-                states.put(config.name(), new ServiceState(config));
+                ServiceState state = new ServiceState(config);
+                int[] limits = bulkhead.get(config.name());
+                if (limits != null) {
+                    if (limits.length != routeCount) {
+                        throw new IllegalArgumentException(
+                                "bulkhead for " + config.name() + " must have one limit per route");
+                    }
+                    state.partitionLimit = limits;
+                    state.partitionBusy = new int[routeCount];
+                    state.partitionQueue = new ArrayList<>(routeCount);
+                    for (int r = 0; r < routeCount; r++) {
+                        state.partitionQueue.add(new ArrayDeque<>());
+                    }
+                }
+                states.put(config.name(), state);
                 spawnTotals.put(config.name(), new long[1]);
                 windowSpawns.put(config.name(), new int[windowCount]);
             }
@@ -283,7 +345,13 @@ public final class BreakerStormSimulator {
         void onArrival(int index, double timeMs) {
             Node node = nodes.get(index);
             ServiceState state = states.get(chains.get(node.route).get(node.hop));
-            if (state.busy < state.config.workers()) {
+            if (state.bulkheaded()) {
+                if (state.partitionBusy[node.route] < state.partitionLimit[node.route]) {
+                    startWork(state, index, timeMs);
+                } else {
+                    state.partitionQueue.get(node.route).addLast(index);
+                }
+            } else if (state.busy < state.config.workers()) {
                 startWork(state, index, timeMs);
             } else {
                 state.queue.addLast(index);
@@ -291,9 +359,17 @@ public final class BreakerStormSimulator {
         }
 
         void startWork(ServiceState state, int index, double timeMs) {
-            state.busy++;
-            if (state.busy > state.config.workers()) {
-                throw new IllegalStateException("worker pool over-committed at " + state.config.name());
+            int route = nodes.get(index).route;
+            if (state.bulkheaded()) {
+                state.partitionBusy[route]++;
+                if (state.partitionBusy[route] > state.partitionLimit[route]) {
+                    throw new IllegalStateException("bulkhead partition over-committed at " + state.config.name());
+                }
+            } else {
+                state.busy++;
+                if (state.busy > state.config.workers()) {
+                    throw new IllegalStateException("worker pool over-committed at " + state.config.name());
+                }
             }
             nodes.get(index).state = STATE_WORKING;
             events.add(new Event(timeMs + state.config.ownWork().at(timeMs),
@@ -381,7 +457,7 @@ public final class BreakerStormSimulator {
             node.failed = !ok;
             node.resolvedMs = timeMs;
             if (previous != STATE_QUEUED) {
-                release(states.get(chains.get(node.route).get(node.hop)), timeMs);
+                release(states.get(chains.get(node.route).get(node.hop)), node.route, timeMs);
             }
             if (node.parent >= 0 && !node.abandoned) {
                 parentReact(node.parent, ok, timeMs);
@@ -406,14 +482,25 @@ public final class BreakerStormSimulator {
             }
         }
 
-        void release(ServiceState state, double timeMs) {
-            state.busy--;
-            if (state.busy < 0) {
-                throw new IllegalStateException("worker pool under-committed at " + state.config.name());
-            }
-            Integer next = state.queue.pollFirst();
-            if (next != null) {
-                startWork(state, next, timeMs);
+        void release(ServiceState state, int route, double timeMs) {
+            if (state.bulkheaded()) {
+                state.partitionBusy[route]--;
+                if (state.partitionBusy[route] < 0) {
+                    throw new IllegalStateException("bulkhead partition under-committed at " + state.config.name());
+                }
+                Integer next = state.partitionQueue.get(route).pollFirst();
+                if (next != null) {
+                    startWork(state, next, timeMs);
+                }
+            } else {
+                state.busy--;
+                if (state.busy < 0) {
+                    throw new IllegalStateException("worker pool under-committed at " + state.config.name());
+                }
+                Integer next = state.queue.pollFirst();
+                if (next != null) {
+                    startWork(state, next, timeMs);
+                }
             }
         }
 
@@ -434,7 +521,7 @@ public final class BreakerStormSimulator {
             }
         }
 
-        BreakerOutcome score(long deadlineMs, long scoringCutoffMs) {
+        BreakerOutcome score() {
             int routeCount = routes.size();
             long[] scored = new long[routeCount];
             long[] success = new long[routeCount];
@@ -446,13 +533,18 @@ public final class BreakerStormSimulator {
             }
 
             for (Node node : nodes) {
-                if (node.parent != -1 || node.rootArrivalMs > scoringCutoffMs) {
+                if (node.parent != -1) {
                     continue;
                 }
                 int r = node.route;
+                // Each route is scored against its own deadline: a root only counts if it had a
+                // full deadline left in the window, and succeeds only if it resolved within it.
+                if (node.rootArrivalMs > durationMs - routeDeadlines[r]) {
+                    continue;
+                }
                 scored[r]++;
                 boolean ok = node.state == STATE_DONE && !node.failed
-                        && node.resolvedMs - node.rootArrivalMs <= deadlineMs;
+                        && node.resolvedMs - node.rootArrivalMs <= routeDeadlines[r];
                 int window = (int) (node.rootArrivalMs / windowMs);
                 if (ok) {
                     success[r]++;
