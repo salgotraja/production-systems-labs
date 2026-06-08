@@ -60,4 +60,37 @@ public interface ServiceTime {
         }
         return startMs -> startMs >= fromMs && startMs < toMs ? degradedMs : healthyMs;
     }
+
+    /**
+     * A <em>partial</em> degradation inside {@code [fromMs, toMs)}: a fixed fraction of calls
+     * are slow, the rest healthy; outside the window every call is healthy. The slow/fast
+     * decision is a fixed-seed pseudo-random draw per call (not a periodic every-Nth pattern,
+     * which phase-locks with the service cadence - the Series 2 Post 5 lesson), so it is
+     * deterministic and golden-stable while staying uncorrelated with arrival timing.
+     *
+     * <p>This is the scenario a circuit breaker cannot help with: if {@code slowFraction} stays
+     * below the breaker's trip threshold, the breaker never opens, yet every slow call still
+     * spawns retry work that a propagated deadline is the only thing left to bound. The returned
+     * instance is stateful (it counts calls) and therefore single-use per simulation run, which
+     * the lab's fresh-per-run topology construction already guarantees.
+     */
+    static ServiceTime partialDegradation(
+            double fromMs, double toMs, long healthyMs, long degradedMs, double slowFraction, long seed) {
+        if (healthyMs <= 0 || degradedMs <= 0) {
+            throw new IllegalArgumentException("service times must be > 0");
+        }
+        if (fromMs >= toMs) {
+            throw new IllegalArgumentException("fromMs must be < toMs");
+        }
+        if (slowFraction < 0.0 || slowFraction > 1.0) {
+            throw new IllegalArgumentException("slowFraction must be in [0, 1]");
+        }
+        java.util.Random random = new java.util.Random(seed);
+        return startMs -> {
+            if (startMs < fromMs || startMs >= toMs) {
+                return healthyMs;
+            }
+            return random.nextDouble() < slowFraction ? degradedMs : healthyMs;
+        };
+    }
 }

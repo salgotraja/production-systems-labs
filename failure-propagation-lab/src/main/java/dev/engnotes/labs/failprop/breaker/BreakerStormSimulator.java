@@ -71,6 +71,7 @@ public final class BreakerStormSimulator {
     private final Map<String, ServiceConfig> services;
     private final RetryPolicyView policy;
     private final Map<String, EdgeBreaker> breakers;
+    private final TimeoutBudget budget;
 
     /**
      * Local mirror of Post 2's retry policy fields (kept module-internal so this package does
@@ -92,6 +93,16 @@ public final class BreakerStormSimulator {
      */
     public BreakerStormSimulator(
             List<ServiceConfig> services, RetryPolicyView policy, Map<String, EdgeBreaker> breakers) {
+        this(services, policy, breakers, null);
+    }
+
+    /**
+     * @param budget propagated deadline that gates downstream calls, or {@code null} for no
+     *               budgeting (uncoordinated per-call timeouts only - the Posts 2-3 behaviour)
+     */
+    public BreakerStormSimulator(
+            List<ServiceConfig> services, RetryPolicyView policy, Map<String, EdgeBreaker> breakers,
+            TimeoutBudget budget) {
         if (services == null || services.isEmpty()) {
             throw new IllegalArgumentException("services must not be empty");
         }
@@ -104,6 +115,7 @@ public final class BreakerStormSimulator {
         this.services = byName;
         this.policy = policy;
         this.breakers = Map.copyOf(breakers);
+        this.budget = budget;
     }
 
     /** Per-route aggregate over scored roots. */
@@ -114,12 +126,17 @@ public final class BreakerStormSimulator {
             double p99ResolutionMs,
             List<Double> windowSuccessPct) {}
 
-    /** Full run outcome. */
+    /**
+     * Full run outcome. {@code leafSpawnsPastDeadline} counts leaf-service attempts that
+     * <em>started</em> after their request's deadline had already passed - pure wasted work, the
+     * load a propagated budget eliminates and uncoordinated timeouts leave behind.
+     */
     public record BreakerOutcome(
             List<RouteResult> routes,
             Map<String, Long> attemptsByService,
             Map<String, List<Integer>> windowAttemptsByService,
             List<Integer> leafAttemptsPerRoot,
+            long leafSpawnsPastDeadline,
             Map<String, List<CircuitBreaker.Transition>> breakerTransitions,
             Map<String, List<Integer>> windowBreakerState) {}
 
@@ -138,6 +155,7 @@ public final class BreakerStormSimulator {
         int windowCount = (int) (scoringCutoffMs / windowMs);
 
         Sim sim = new Sim(routes, windowMs, windowCount);
+        sim.deadlineMs = deadlineMs;
 
         for (int r = 0; r < routes.size(); r++) {
             double interMs = 1000.0 / routes.get(r).rateRps();
@@ -219,6 +237,8 @@ public final class BreakerStormSimulator {
         final Map<String, long[]> spawnTotals = new LinkedHashMap<>();
         final Map<String, int[]> windowSpawns = new LinkedHashMap<>();
         final List<Integer> leafAttempts = new ArrayList<>(); // root index per leaf spawn
+        long deadlineMs;
+        long leafSpawnsPastDeadline;
         int rootCount;
         long seq;
 
@@ -237,12 +257,20 @@ public final class BreakerStormSimulator {
         int spawn(int route, int hop, int parent, double timeMs) {
             int rootIndex = parent == -1 ? rootCount++ : nodes.get(parent).rootIndex;
             Node node = new Node(route, hop, parent, rootIndex);
+            if (parent != -1) {
+                // The request's arrival travels down the tree so any node can measure its age
+                // against the deadline - the basis for both budgeting and the wasted-work count.
+                node.rootArrivalMs = nodes.get(parent).rootArrivalMs;
+            }
             nodes.add(node);
             int index = nodes.size() - 1;
             String service = chains.get(route).get(hop);
             spawnTotals.get(service)[0]++;
             if (hop == chains.get(route).size() - 1) {
                 leafAttempts.add(rootIndex);
+                if (timeMs - node.rootArrivalMs > deadlineMs) {
+                    leafSpawnsPastDeadline++;
+                }
             }
             int window = (int) (timeMs / windowMs);
             if (window >= 0 && window < windowCount) {
@@ -286,6 +314,14 @@ public final class BreakerStormSimulator {
             Node node = nodes.get(index);
             node.currentAttempt = attempt;
             node.generation++;
+            if (budget != null && timeMs - node.rootArrivalMs + budget.floorMs() > budget.deadlineMs()) {
+                // Deadline first: the request is already too old for a downstream call to finish
+                // in time, so fail fast without spawning doomed work - and crucially without
+                // consulting the breaker. Because the deadline is carried, even an abandoned
+                // subtree stops here instead of running its retries to exhaustion.
+                finish(index, false, timeMs);
+                return;
+            }
             EdgeBreaker breaker = breakerFor(node);
             if (breaker != null && !breaker.allow(timeMs)) {
                 // Fail fast: the attempt is consumed without ever touching the downstream.
@@ -294,8 +330,15 @@ public final class BreakerStormSimulator {
                 return;
             }
             node.activeChild = spawn(node.route, node.hop + 1, index, timeMs);
-            events.add(new Event(timeMs + policy.perCallTimeoutMs(),
-                    seq++, KIND_CHILD_TIMEOUT, index, node.generation));
+            double timeoutAt = timeMs + policy.perCallTimeoutMs();
+            if (budget != null) {
+                // Deadline propagation: the call gets the smaller of its static timeout and the
+                // request's remaining budget, so an in-flight call cannot run past the deadline
+                // either. This is what caps the whole tree's resolution at the deadline rather
+                // than just refusing late spawns.
+                timeoutAt = Math.min(timeoutAt, node.rootArrivalMs + budget.deadlineMs());
+            }
+            events.add(new Event(timeoutAt, seq++, KIND_CHILD_TIMEOUT, index, node.generation));
         }
 
         void onChildTimeout(int index, int generation, double timeMs) {
@@ -472,6 +515,7 @@ public final class BreakerStormSimulator {
                     attempts,
                     attemptsPerWindow,
                     List.copyOf(perRoot),
+                    leafSpawnsPastDeadline,
                     transitionLog,
                     stateLog);
         }
