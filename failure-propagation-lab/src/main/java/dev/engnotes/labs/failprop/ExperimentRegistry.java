@@ -60,8 +60,17 @@ public final class ExperimentRegistry {
             Path.of("build", "fp-post4"),
             Path.of("golden", "fp-post4"));
 
-    private static final List<ExperimentDefinition> ALL =
-            List.of(CASCADING_FAILURES, RETRY_STORMS, CIRCUIT_BREAKER, TIMEOUT_BUDGETS);
+    public static final ExperimentDefinition FAILURE_ISOLATION = new ExperimentDefinition(
+            "failure-isolation",
+            5,
+            "Failure Isolation Boundaries",
+            "runFailureIsolation",
+            FailureIsolationMain.class,
+            Path.of("build", "fp-post5"),
+            Path.of("golden", "fp-post5"));
+
+    private static final List<ExperimentDefinition> ALL = List.of(
+            CASCADING_FAILURES, RETRY_STORMS, CIRCUIT_BREAKER, TIMEOUT_BUDGETS, FAILURE_ISOLATION);
 
     private ExperimentRegistry() {}
 

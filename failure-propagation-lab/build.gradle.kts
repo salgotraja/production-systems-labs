@@ -71,6 +71,7 @@ val experiments = listOf(
     ExperimentTask(2, "runRetryStorms", "Retry storms and amplification", "dev.engnotes.labs.failprop.RetryStormsMain"),
     ExperimentTask(3, "runCircuitBreaker", "Circuit breaker design", "dev.engnotes.labs.failprop.CircuitBreakerMain"),
     ExperimentTask(4, "runTimeoutBudgets", "Timeout budgeting", "dev.engnotes.labs.failprop.TimeoutBudgetsMain"),
+    ExperimentTask(5, "runFailureIsolation", "Failure isolation boundaries", "dev.engnotes.labs.failprop.FailureIsolationMain"),
 )
 
 experiments.forEach { experiment ->

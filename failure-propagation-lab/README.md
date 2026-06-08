@@ -411,3 +411,96 @@ is the first-line dial; the breaker is for when you cannot tighten it.
 | `budget/BudgetScenario.java` | The deadline sweep and the tight-deadline table |
 | `charting/BudgetChartGenerator.java` | XChart PNGs for the dial and the latency cap |
 | `TimeoutBudgetsMain.java` | Entry point: CSVs, charts, manifest, report |
+
+---
+
+## Post 5: Failure Isolation Boundaries (the capstone)
+
+**TL;DR**
+- The failure mode no detection-based tool can touch: a *slow-but-healthy* neighbour. route-a's
+  database is slow but under the timeout, so its calls succeed in ~390ms - nothing fails, nothing
+  is slow on route-b's own path - yet route-a's holds saturate the shared frontend pool and
+  route-b (which never touches the database) starves from 100% to 22%
+- The circuit breaker never trips (no failures) and the timeout budget never fires (route-b's
+  loss is the frontend *queue* wait, before any downstream call): both are byte-for-byte inert,
+  identical to no protection at all. Only a **bulkhead** - a dedicated slice of the pool reserved
+  for route-b - contains the blast, lifting it back to 100%
+- That answers Post 1: the cascade is *resource coupling*, not failure propagation, so the fix
+  isolates the resource rather than detecting a failure. Size the reserve to the protected
+  route's actual need (Little's Law: `λ_b × sojourn_b ≈ 1 worker`); over-reserve and you starve
+  the neighbour you were trying to keep useful
+
+This is the series capstone: it assembles the four tools (retry, breaker, budget, bulkhead)
+and shows they are complementary, each for its own failure mode - and that the bulkhead is the
+one that addresses the root cause Post 1 named.
+
+### Run it
+
+```bash
+./gradlew :failure-propagation-lab:runFailureIsolation -Pargs="--deterministic --duration 5s --output-dir ./results/failure-isolation"
+```
+
+The model is a fully synthetic, single-threaded discrete-event simulation, so output is
+byte-for-byte reproducible (constant service times, no randomness).
+
+### What it models
+
+A 20-worker frontend pool shared by two routes with different SLAs: route-a (a slow batch
+endpoint, frontend -> service-a -> database with the database at 380ms, just under the 400ms
+timeout) on a loose 1000ms deadline at 55 rps; route-b (a fast interactive endpoint,
+frontend -> service-b at ~15ms) on a tight 100ms deadline at 50 rps. route-a's offered
+concurrency (`55 × 0.39 ≈ 21`) exceeds the pool, so it saturates the shared queue and route-b
+starves behind 390ms holds. The database has 30 workers so it never saturates - route-a's calls
+succeed, which is the whole point: there is no failure to detect. Two experiments:
+
+1. **The policy table** - naive, breaker, budget, bulkhead, and all combined.
+2. **The bulkhead sizing sweep** - route-b's reserved slice from 1 to 8 workers.
+
+### Expected golden output (deterministic, 5s)
+
+Policy table:
+
+| Policy | route-a ok% | route-a p99 | route-b ok% | route-b p99 |
+|---|--:|--:|--:|--:|
+| naive | 100.0 | 795 | **22.0** | 490 |
+| breaker | 100.0 | 795 | **22.0** | 490 |
+| budget | 100.0 | 795 | **22.0** | 490 |
+| bulkhead | 100.0 | 880 | **100.0** | 15 |
+| all-three | 100.0 | 880 | **100.0** | 15 |
+
+The breaker and budget rows are *identical* to naive, to the decimal: with nothing failing and
+nothing slow on route-b's own path, they have nothing to act on. Only the bulkhead lifts route-b
+- and at its correctly-sized one-worker reserve it does so at no cost to route-a (still 100%,
+p99 nudged 795 -> 880 as route-a trades its 20th shared worker for 19 dedicated ones).
+
+Bulkhead sizing sweep:
+
+| route-b reserved | route-a workers | route-a ok% | route-b ok% |
+|--:|--:|--:|--:|
+| 1 | 19 | **100.0** | 100.0 |
+| 2 | 18 | 81.8 | 100.0 |
+| 4 | 16 | 50.9 | 100.0 |
+| 8 | 12 | 21.8 | 100.0 |
+
+route-b is whole from one reserved worker - its entire need - so reserving more buys it nothing
+and costs route-a everything: the cost of isolation is the idle slack route-a can no longer
+borrow. Size the bulkhead to the protected route's need, not bigger.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `fp-post5-policy-table.csv` | Five policies, both routes scored - golden contract |
+| `fp-post5-bulkhead-sizing.csv` | route-b's reserve from 1 to 8 workers - golden contract |
+| `fp-post5-policy.png` | Success by policy: only the bulkhead lifts the victim |
+| `fp-post5-bulkhead-sizing.png` | The sizing trade-off: route-b flat, route-a falling |
+| `manifest.json` / `report.html` | Run receipt and self-contained HTML report |
+
+### Key source files
+
+| File | Role |
+|---|---|
+| `breaker/BreakerStormSimulator.java` | Per-route partition admission (the bulkhead) + per-route deadlines |
+| `bulkhead/BulkheadScenario.java` | The policy comparison and the sizing sweep |
+| `charting/BulkheadChartGenerator.java` | XChart PNGs for the policy bars and the sizing trade-off |
+| `FailureIsolationMain.java` | Entry point: CSVs, charts, manifest, report |

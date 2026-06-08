@@ -1,0 +1,6 @@
+policy,route_a_success_pct,route_a_p99_ms,route_b_success_pct,route_b_p99_ms
+naive,100.0,795.0,22.0,490.0
+breaker,100.0,795.0,22.0,490.0
+budget,100.0,795.0,22.0,490.0
+bulkhead,100.0,880.0,100.0,15.0
+all-three,100.0,880.0,100.0,15.0
