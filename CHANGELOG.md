@@ -12,19 +12,20 @@
     on a shared service (a route can exhaust only its own slice, never a sibling's), plus
     per-route client deadlines (a slow batch SLA and a fast interactive SLA sharing a pool).
     Both default off; Posts 2/3/4 goldens verified byte-identical
-  - `bulkhead`: `BulkheadScenario` - the failure mode no detection-based tool can touch: a
-    slow-but-healthy neighbour (database at 380ms, under the 400ms timeout) hogs a 20-worker
-    frontend pool and starves a route that never touches it (route-b 100 -> 22%). The breaker
-    never trips and the budget never fires - both reproduce the naive numbers exactly - and
-    only a bulkhead restores route-b to 100%, answering Post 1 (the cascade is resource
-    coupling). Plus a sizing sweep: reserve to the protected route's need (1 worker), over-
-    reserve and the neighbour starves (route-a 100 -> 22%)
+  - `bulkhead`: `BulkheadScenario` - the failure mode no detection-based tool can touch: an
+    overloaded neighbour whose calls still succeed (database at 380ms, under the 400ms timeout)
+    monopolizes a 20-worker frontend pool and starves a route that never touches it
+    (route-b 100 -> 22%). The breaker never trips and the budget never fires - both reproduce
+    the naive numbers exactly - and only a bulkhead restores route-b to 100%, answering Post 1
+    (the cascade is resource coupling). The cost falls on the greedy neighbour by design. Plus
+    a sizing sweep: reserve to the victim's need (1 worker), over-reserve and route-a starves
+    (100 -> 22% at the 5s snapshot)
   - `charting`: `BulkheadChartGenerator` - success by policy and the sizing trade-off
   - Golden files in `golden/fp-post5/`; CI report step extended
-  - Tests: neighbour starves the victim, breaker inert (never trips, byte-identical to naive),
-    budget inert (the loss is queue wait, before any gated call), only the bulkhead saves the
-    victim at no cost when sized right, over-reserving starves the neighbour, deterministic;
-    golden + registry (5 experiments)
+  - Tests: greedy neighbour starves the victim, breaker inert (never trips, byte-identical to
+    naive), budget inert (the loss is queue wait, before any gated call), only the bulkhead
+    saves the victim (its cost to route-a visible in p99), over-reserving starves the neighbour,
+    deterministic; golden + registry (5 experiments)
 
 **Series 3: Failure Propagation in Microservices - Post 4**
 

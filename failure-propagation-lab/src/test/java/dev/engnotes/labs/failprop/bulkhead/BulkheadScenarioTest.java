@@ -48,9 +48,13 @@ class BulkheadScenarioTest {
     }
 
     @Test
-    void aSlowNeighbourStarvesTheVictimOnASharedPool() {
+    void aGreedyNeighbourStarvesTheVictimOnASharedPool() {
+        // route-a is over capacity (offered concurrency > pool), but its individual calls still
+        // succeed (db 380ms < 400ms timeout) - so the breaker has no failure to see. At 5s its
+        // growing backlog has not yet breached its 1000ms deadline, so it reads 100%; the durable
+        // result is route-b's starvation, not route-a's window-bounded number.
         BreakerStormSimulator.BreakerOutcome naive = run(false, false, Map.of());
-        assertEquals(100.0, routeA(naive), 0.01, "route-a is slow but succeeds - nothing has failed");
+        assertEquals(100.0, routeA(naive), 0.01, "route-a's calls succeed - no failure for the breaker to see");
         assertTrue(routeB(naive) < 30.0, "route-b starves behind route-a's pool holds: " + routeB(naive));
     }
 
@@ -79,8 +83,13 @@ class BulkheadScenarioTest {
         BreakerStormSimulator.BreakerOutcome bulkheaded =
                 run(false, false, BulkheadScenario.bulkhead(BulkheadScenario.ROUTE_B_RESERVE));
         assertEquals(100.0, routeB(bulkheaded), 0.01, "a dedicated slice keeps route-b whole");
-        assertEquals(100.0, routeA(bulkheaded), 0.01,
-                "and at its correctly-sized reserve the bulkhead costs route-a nothing");
+        // route-a still reads 100% in this 5s window, but the bulkhead's cost to it is real, not
+        // absent: its p99 rises (it now has 19 dedicated workers, not 20 shared) and over a longer
+        // run its success falls below naive's - it is over capacity, and the fence makes that bite
+        // sooner. The cost falling on the greedy neighbour is the point of a bulkhead.
+        assertEquals(100.0, routeA(bulkheaded), 0.01, "route-a's 5s number is unchanged; its p99 and long-run cost are not");
+        assertTrue(bulkheaded.routes().get(0).p99ResolutionMs() > run(false, false, Map.of()).routes().get(0).p99ResolutionMs(),
+                "the bulkhead's cost to route-a is visible now in p99");
     }
 
     @Test

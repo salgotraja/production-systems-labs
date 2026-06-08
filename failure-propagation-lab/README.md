@@ -417,18 +417,19 @@ is the first-line dial; the breaker is for when you cannot tighten it.
 ## Post 5: Failure Isolation Boundaries (the capstone)
 
 **TL;DR**
-- The failure mode no detection-based tool can touch: a *slow-but-healthy* neighbour. route-a's
-  database is slow but under the timeout, so its calls succeed in ~390ms - nothing fails, nothing
-  is slow on route-b's own path - yet route-a's holds saturate the shared frontend pool and
-  route-b (which never touches the database) starves from 100% to 22%
-- The circuit breaker never trips (no failures) and the timeout budget never fires (route-b's
-  loss is the frontend *queue* wait, before any downstream call): both are byte-for-byte inert,
-  identical to no protection at all. Only a **bulkhead** - a dedicated slice of the pool reserved
-  for route-b - contains the blast, lifting it back to 100%
+- The failure mode no detection-based tool can touch: an *overloaded neighbour whose calls still
+  succeed*. route-a's database is slow but under the timeout, so its individual calls succeed in
+  ~390ms - nothing *fails*, nothing is slow on route-b's own path - yet route-a's offered load
+  exceeds the pool, its holds saturate the shared frontend queue, and route-b (which never
+  touches the database) starves from 100% to 22%
+- The circuit breaker never trips (no failed calls to see) and the timeout budget never fires
+  (route-b's loss is the frontend *queue* wait, before any downstream call): both are
+  byte-for-byte inert, identical to no protection at all. Only a **bulkhead** - a dedicated slice
+  of the pool reserved for route-b - contains the blast, lifting it back to 100%
 - That answers Post 1: the cascade is *resource coupling*, not failure propagation, so the fix
-  isolates the resource rather than detecting a failure. Size the reserve to the protected
-  route's actual need (Little's Law: `λ_b × sojourn_b ≈ 1 worker`); over-reserve and you starve
-  the neighbour you were trying to keep useful
+  isolates the resource rather than detecting a failure. The bulkhead's cost falls on the greedy
+  neighbour by design - size the reserve to the victim's actual need (Little's Law:
+  `λ_b × sojourn_b ≈ 1 worker`); over-reserve and you starve route-a further
 
 This is the series capstone: it assembles the four tools (retry, breaker, budget, bulkhead)
 and shows they are complementary, each for its own failure mode - and that the bulkhead is the
@@ -449,9 +450,14 @@ A 20-worker frontend pool shared by two routes with different SLAs: route-a (a s
 endpoint, frontend -> service-a -> database with the database at 380ms, just under the 400ms
 timeout) on a loose 1000ms deadline at 55 rps; route-b (a fast interactive endpoint,
 frontend -> service-b at ~15ms) on a tight 100ms deadline at 50 rps. route-a's offered
-concurrency (`55 × 0.39 ≈ 21`) exceeds the pool, so it saturates the shared queue and route-b
-starves behind 390ms holds. The database has 30 workers so it never saturates - route-a's calls
-succeed, which is the whole point: there is no failure to detect. Two experiments:
+concurrency (`55 × 0.39 ≈ 21`) *exceeds* the 20-worker pool - it is genuinely over capacity -
+so it monopolizes the shared queue and route-b starves behind 390ms holds. The database has 30
+workers so it never saturates: route-a's individual *calls* succeed (380ms < 400ms timeout),
+which is the whole point - the breaker has no failed call to see. (Because route-a is
+oversubscribed, its own backlog grows with the run; in this 5s snapshot it reads 100% only
+because the backlog has not yet breached its 1000ms deadline - at `--duration 20s` route-a falls
+to ~30%. route-b's starvation and rescue are the durable result; route-a's number is
+window-bounded.) Two experiments:
 
 1. **The policy table** - naive, breaker, budget, bulkhead, and all combined.
 2. **The bulkhead sizing sweep** - route-b's reserved slice from 1 to 8 workers.
@@ -468,10 +474,13 @@ Policy table:
 | bulkhead | 100.0 | 880 | **100.0** | 15 |
 | all-three | 100.0 | 880 | **100.0** | 15 |
 
-The breaker and budget rows are *identical* to naive, to the decimal: with nothing failing and
-nothing slow on route-b's own path, they have nothing to act on. Only the bulkhead lifts route-b
-- and at its correctly-sized one-worker reserve it does so at no cost to route-a (still 100%,
-p99 nudged 795 -> 880 as route-a trades its 20th shared worker for 19 dedicated ones).
+The breaker and budget rows are *identical* to naive, to the decimal: with no failed calls and
+nothing slow on route-b's own path, they have nothing to act on. Only the bulkhead lifts route-b.
+The cost lands on route-a, the greedy neighbour: at this 5s snapshot it surfaces as p99
+(795 -> 880ms, as route-a trades its 20th shared worker for 19 dedicated ones), and over a longer
+window as success too (route-a is over capacity, so confining it to 19 workers makes it fail
+sooner - at `--duration 20s`, bulkhead route-a is ~25% vs naive ~30%). That cost is the point of
+a bulkhead, not a flaw: you bound the noisy neighbour to protect the victim.
 
 Bulkhead sizing sweep:
 
@@ -483,8 +492,8 @@ Bulkhead sizing sweep:
 | 8 | 12 | 21.8 | 100.0 |
 
 route-b is whole from one reserved worker - its entire need - so reserving more buys it nothing
-and costs route-a everything: the cost of isolation is the idle slack route-a can no longer
-borrow. Size the bulkhead to the protected route's need, not bigger.
+and costs route-a steeply: every worker fenced off for route-b is one the (already over-capacity)
+neighbour can no longer use. Size the bulkhead to the protected route's need, not bigger.
 
 ### Output files
 
