@@ -21,14 +21,14 @@ cd production-systems-labs
 
 ## Series 1 - Tail Latency & System Behavior (`latency-lab`)
 
-| Post | Topic                                   | Gradle Task | Deterministic result |
-|------|-----------------------------------------|-------------|----------------------|
-| 1 | [Why Average Latency Lies](https://engnotes.dev/blog/tail-latency-system-behavior/part-1-why-average-latency-lies)           | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
-| 2 | Queueing Theory for Engineers           | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
-| 3 | Hedged Requests & Speculative Execution | `./gradlew :latency-lab:runHedgedRequests` | p95 hedge p99 `43.0ms`, extra load `3.7%` |
-| 4 | The Coordinated Omission Problem        | `./gradlew :latency-lab:runCoordinatedOmission` | closed-loop raw p99 `10.0ms`, corrected p99 `460.0ms` |
-| 5 | Backpressure Design Patterns            | `./gradlew :latency-lab:runBackpressure` | token-bucket accepted `599`, rejected `401`, p99 `10.0ms` |
-| 6 | SLO Engineering                         | `./gradlew :latency-lab:runSloPolicy` | bulkhead SLI `99.60%`, worst burn `1.00x` |
+| Post | Topic                                                                                                              | Gradle Task | Deterministic result |
+|------|--------------------------------------------------------------------------------------------------------------------|-------------|----------------------|
+| 1 | [Why Average Latency Lies](https://engnotes.dev/blog/tail-latency-system-behavior/part-1-why-average-latency-lies) | `./gradlew :latency-lab:runTailLatency` | baseline p99 `34.0ms`, fan-out p99 `597.0ms` |
+| 2 | [Queueing Theory for Engineers](https://engnotes.dev/blog/tail-latency-system-behavior/part-2-queueing-theory-for-engineers)                                                                                  | `./gradlew :latency-lab:runQueueSaturation` | rho `1.30` p99 `605.0ms` |
+| 3 | Hedged Requests & Speculative Execution                                                                            | `./gradlew :latency-lab:runHedgedRequests` | p95 hedge p99 `43.0ms`, extra load `3.7%` |
+| 4 | The Coordinated Omission Problem                                                                                   | `./gradlew :latency-lab:runCoordinatedOmission` | closed-loop raw p99 `10.0ms`, corrected p99 `460.0ms` |
+| 5 | Backpressure Design Patterns                                                                                       | `./gradlew :latency-lab:runBackpressure` | token-bucket accepted `599`, rejected `401`, p99 `10.0ms` |
+| 6 | SLO Engineering                                                                                                    | `./gradlew :latency-lab:runSloPolicy` | bulkhead SLI `99.60%`, worst burn `1.00x` |
 
 ### Standard Flags (all experiments)
 
@@ -74,17 +74,42 @@ arrivals). The absolute figures are artifacts of the chosen constants; what tran
 is the mechanism, not the numbers. See the [module README](backpressure-playground/README.md) for
 the full caveat.
 
+## Series 3 - Failure Propagation in Microservices (`failure-propagation-lab`)
+
+| Post | Topic | Gradle Task | Deterministic result |
+|------|-------|-------------|----------------------|
+| 1 | Cascading Failures Explained | `./gradlew :failure-propagation-lab:runCascadingFailures` | a database degraded to `500` ms collapses route-a to `10.0`% success - and route-b, which never touches the database, to `24.5`%; the only coupling is the shared frontend worker pool, and the backlog queues upstream (frontend queue `0 -> 91` while the database queue reads `0`) |
+| 2 | Retry Storms and Amplification | `./gradlew :failure-propagation-lab:runRetryStorms` | per-hop retries compound multiplicatively: `3` attempts at each of two hops = `9.00` database attempts per request against a hard-down dependency, with `0`% success at every R; against a 1s transient the same policy rescues clients (~`100`% vs no-retry's six failed windows) at a `6x` database-load spike |
+| 3 | Circuit Breaker Design | `./gradlew :failure-propagation-lab:runCircuitBreaker` | the breaker buys no successes against a hard-down dependency (`0`% with or without) - it collapses Post 2's storm `9.00 -> 0.29` attempts/request, turns 1305ms hangs into `105`ms fail-fasts, and contains Post 1's cascade: route-b never drops a window where naive retries kill it for seven; the Resilience4j row is byte-identical to the hand-rolled one |
+| 4 | Timeout Budgeting | `./gradlew :failure-propagation-lab:runTimeoutBudgets` | a propagated deadline is the latency dial: budget p99 tracks the deadline (`450 -> 1000`ms) where an uncoordinated timeout is flat at `1305`ms and a breaker is flat at `905`ms; below one retry-width (`450`ms) the budget admits a single attempt, prevents the storm, and beats the breaker on the first request with no warmup (`60.6`% vs `39.4`% success) |
+| 5 | Failure Isolation Boundaries (capstone) | `./gradlew :failure-propagation-lab:runFailureIsolation` | an overloaded neighbour whose calls still succeed hogs a shared pool and starves a route that never touches it (`100 -> 22`% success); the breaker and budget are byte-for-byte inert (no failed call to see, nothing slow on the victim's path), and only a bulkhead restores it to `100`% - its cost falls on the greedy neighbour; size the reserve to the victim's need (`1` worker here), over-reserve and route-a starves further |
+
+```bash
+./gradlew :failure-propagation-lab:runCascadingFailures -Pargs="--deterministic --duration 5s --output-dir ./results/cascading-failures"
+./gradlew :failure-propagation-lab:runRetryStorms -Pargs="--deterministic --duration 5s --output-dir ./results/retry-storms"
+./gradlew :failure-propagation-lab:runCircuitBreaker -Pargs="--deterministic --duration 5s --output-dir ./results/circuit-breaker"
+./gradlew :failure-propagation-lab:runTimeoutBudgets -Pargs="--deterministic --duration 5s --output-dir ./results/timeout-budgets"
+./gradlew :failure-propagation-lab:runFailureIsolation -Pargs="--deterministic --duration 5s --output-dir ./results/failure-isolation"
+./gradlew :failure-propagation-lab:runCircuitBreakerLive   # Javalin live mode - trip a real breaker with curl
+```
+
+Series 3 golden files live under `golden/fp-post{N}/`. Per ADR-007 the golden contract is the
+synthetic multi-service simulation; a Javalin live mode (the same topology over real localhost
+HTTP) lands in Post 3, where it is demonstrative and never golden-tested. The same synthetic-lab
+caveat as Series 2 applies; see the [module README](failure-propagation-lab/README.md).
+
 ## Repository Structure
 
 ```
 production-systems-labs/
 ├── build.gradle.kts          # root: group/version only
-├── settings.gradle.kts       # includes lab-commons + latency-lab + backpressure-playground
+├── settings.gradle.kts       # includes lab-commons + the per-series labs
 ├── gradle/libs.versions.toml # pinned dependency versions
 ├── buildSrc/                 # shared Java 25 convention plugin
 ├── lab-commons/              # shared: histogram, csv, cli, terminal, concurrency
 ├── latency-lab/              # Series 1 (6 posts)
 ├── backpressure-playground/  # Series 2 (Posts 1-5, complete)
+├── failure-propagation-lab/  # Series 3 (Post 1; Posts 2-5 planned)
 ├── golden/                   # reference output for golden file tests
 └── .github/workflows/        # build + golden CSV regression tests
 ```

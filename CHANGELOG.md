@@ -1,5 +1,124 @@
 # Changelog
 
+## [Unreleased] - 2026-06-08
+
+### Added
+
+**Series 3: Failure Propagation in Microservices - Post 5 (series complete)**
+
+- Post 5 "Failure Isolation Boundaries" - the Series 3 capstone (`runFailureIsolation` +
+  `runPost5` alias)
+  - `breaker`: bulkhead support in `BreakerStormSimulator` - per-route concurrency partitions
+    on a shared service (a route can exhaust only its own slice, never a sibling's), plus
+    per-route client deadlines (a slow batch SLA and a fast interactive SLA sharing a pool).
+    Both default off; Posts 2/3/4 goldens verified byte-identical
+  - `bulkhead`: `BulkheadScenario` - the failure mode no detection-based tool can touch: an
+    overloaded neighbour whose calls still succeed (database at 380ms, under the 400ms timeout)
+    monopolizes a 20-worker frontend pool and starves a route that never touches it
+    (route-b 100 -> 22%). The breaker never trips and the budget never fires - both reproduce
+    the naive numbers exactly - and only a bulkhead restores route-b to 100%, answering Post 1
+    (the cascade is resource coupling). The cost falls on the greedy neighbour by design. Plus
+    a sizing sweep: reserve to the victim's need (1 worker), over-reserve and route-a starves
+    (100 -> 22% at the 5s snapshot)
+  - `charting`: `BulkheadChartGenerator` - success by policy and the sizing trade-off
+  - Golden files in `golden/fp-post5/`; CI report step extended
+  - Tests: greedy neighbour starves the victim, breaker inert (never trips, byte-identical to
+    naive), budget inert (the loss is queue wait, before any gated call), only the bulkhead
+    saves the victim (its cost to route-a visible in p99), over-reserving starves the neighbour,
+    deterministic; golden + registry (5 experiments)
+
+**Series 3: Failure Propagation in Microservices - Post 4**
+
+- Post 4 "Timeout Budgeting" (`runTimeoutBudgets` + `runPost4` alias)
+  - `breaker`: `TimeoutBudget` (propagated deadline + floor) + a deadline gate in
+    `BreakerStormSimulator` - a request carries an absolute deadline down the call tree
+    (rootArrivalMs propagated to children); a hop refuses to start a call past the deadline and
+    caps every in-flight call's timeout at `min(static, remaining)`, so even an abandoned
+    subtree self-terminates. Default off; Post 3 golden verified byte-unchanged
+  - `cascade`: additive `ServiceTime.partialDegradation` (fixed-seed slow fraction; the regime
+    a breaker handles least cleanly - the slow minority storms but the dependency is not down)
+  - `budget`: `BudgetScenario` - deadline sweep (budget p99 tracks the deadline 450->1000 where
+    breaker is flat at 905 and no-protection at 1305; success knee at one retry-width 450ms) +
+    tight-deadline policy table (budget alone 60.6% beats breaker 39.4% by preventing the storm
+    on the first request, no warmup; the breaker earns its place only at loose deadlines)
+  - `charting`: `BudgetChartGenerator` - the deadline dial and the latency cap
+  - Golden files in `golden/fp-post4/`; CI report step extended
+  - Tests: deadline caps p99, starts no work past the deadline, tight deadline prevents the
+    storm and beats the breaker, loose deadline lets the breaker win, hard-down budget-off
+    reproduces Post 2 (the gate is inert when disabled), deterministic; golden + registry
+
+**Series 3: Failure Propagation in Microservices - Post 3**
+
+- Post 3 "Circuit Breaker Design" (`runCircuitBreaker` + `runPost3` alias)
+  - `breaker`: hand-rolled `CircuitBreaker` - the full CLOSED/OPEN/HALF_OPEN state machine with
+    an explicit clock (same class runs under the simulation clock and the live mode's wall
+    clock); count-based sliding window; transition log; boundary-exact unit tests
+  - `breaker`: `EdgeBreaker` interface + `Resilience4jBreakerAdapter` - the real library driven
+    deterministically (count-based window, automatic transition disabled, day-long wait so the
+    wall clock can never leak in, manual transitions from synthetic time); determinism pinned
+    by test, and its golden sweep row is byte-identical to the hand-rolled one
+  - `breaker`: `BreakerStormSimulator` - Post 2's machine extended with multiple routes,
+    breaker-gated edges (rejected attempts fail fast without spawning downstream work), and
+    the fail-response path (reachable now: a breakered callee fails faster than its caller's
+    timeout); naive single-route run reproduces Post 2's golden numbers exactly (pinned)
+  - `breaker`: `BreakerStormScenario` - hard-down comparison (storm 9.00 -> 0.29
+    attempts/request, hangs 1305ms -> 105ms median, success 0 either way) + blast-radius
+    timeline on Post 1's shared-pool topology (route-b: seven dead windows naive, zero
+    breakered; both edges re-closed by one nested probe pass; route-b scored against a 300ms
+    interactive budget)
+  - `CircuitBreakerLiveMain` + `runCircuitBreakerLive` task - the ADR-007 Javalin live mode:
+    two local services, the same hand-rolled breaker on the wall clock, trip and recover it
+    with curl; demonstrative only, never golden-tested, not in CI
+  - Version catalog: `resilience4j-circuitbreaker`, `javalin`, `slf4j-simple`
+  - Golden files in `golden/fp-post3/`; CI report step extended
+
+**Series 3: Failure Propagation in Microservices - Post 2**
+
+- Post 2 "Retry Storms and Amplification" (`runRetryStorms` + `runPost2` alias)
+  - `retrystorm`: `RetryPolicy` (attempts per hop, per-call timeout, backoff; retry on any
+    error - the naive policy the experiment indicts)
+  - `retrystorm`: `RetryStormSimulator` - call-tree event loop where every downstream attempt
+    is a node; timeout generations prevent a stale timeout from double-retrying after a fast
+    response; abandoned callers keep retrying (abandonment gates only the upward notify) -
+    the mechanism that compounds R attempts per hop into R^2 leaf attempts
+  - `retrystorm`: `RetryStormScenario` - amplification sweep (R x healthy/hard-down;
+    amplification measured over roots whose full retry tree fits the window: exactly 1/4/9,
+    then 14.55 at R=4 where the storm saturates even a 200-worker middle tier) + transient
+    1s degradation timeline (R=3 rescues clients at a 6x database attempt-rate spike where
+    R=1 fails six windows)
+  - `cascade`: additive `ServiceTime.degradedBetween` factory (transient degradation with
+    recovery; Post 1 golden untouched)
+  - `charting`: `StormChartGenerator` - storm attempt-rate, rescue, and R^2 amplification PNGs
+  - Golden files in `golden/fp-post2/`; CI report step extended
+  - Tests: hand-computed micro-cases (exact spawn counts and resolution times), stale-timeout
+    invalidation, abandoned-keeps-retrying, rescue-at-amplified-cost timeline, golden
+    regression, registry (2 experiments)
+
+**Series 3: Failure Propagation in Microservices - Post 1**
+
+- New `failure-propagation-lab` Gradle module (mirrors `backpressure-playground` plumbing:
+  module-local `ExperimentRegistry` / `ExperimentDefinition` / `PostArtifacts`, golden dirs
+  under `golden/fp-post{N}`)
+- Post 1 "Cascading Failures Explained" (`runCascadingFailures` + `runPost1` alias)
+  - `cascade`: `ServiceConfig` (bounded worker pool + unbounded FIFO queue), `ServiceTime`
+    (constant / degradedAfter), `RouteDemand` (linear synchronous call chain)
+  - `cascade`: `CascadeSimulator` - deterministic multi-service event loop; a synchronous call
+    holds every upstream worker until the leaf completes (the cascade vector); no timeouts, no
+    retries by design (Posts 2 and 4's subjects)
+  - `cascade`: `CascadeScenario` - database service-time sweep across the 200ms capacity edge +
+    mid-run degradation timeline (10ms -> 500ms at t=2s) with per-service queue-depth samples
+  - `charting`: `CascadeChartGenerator` - sweep cliff and degradation-timeline PNGs
+  - Golden files in `golden/fp-post1/`; CI generates and uploads a
+    `failure-propagation-lab-reports-*` artifact per platform
+  - Tests: cascade invariants (the failure crosses to a route that never touches the slow
+    dependency; isolated frontend pools contain the blast; the backlog queues upstream of the
+    bottleneck - frontend queue grows 0 -> 91 while the database queue reads 0), golden
+    regression, registry
+- Architecture per ADR-007: the golden contract for every Series 3 post is the synthetic
+  simulation; Javalin live mode (real localhost HTTP over the same topology) lands in Post 3
+  and is demonstrative, never golden-tested
+- Root README Series 3 section
+
 ## [Unreleased] - 2026-06-06
 
 ### Added

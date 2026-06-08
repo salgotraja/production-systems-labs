@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 include("lab-commons")
 include("latency-lab")
 include("backpressure-playground")
+include("failure-propagation-lab")

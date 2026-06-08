@@ -1,0 +1,4 @@
+policy,success_pct,db_attempts_per_request,db_attempts_rps,p50_resolution_ms,p99_resolution_ms
+naive-retry,0.0,9.00,369.4,1305.0,1305.0
+with-breaker,0.0,0.29,9.6,105.0,905.0
+resilience4j,0.0,0.29,9.6,105.0,905.0

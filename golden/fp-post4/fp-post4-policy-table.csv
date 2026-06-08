@@ -1,0 +1,5 @@
+policy,success_pct,db_attempts_per_request,past_deadline_pct,p50_resolution_ms,p99_resolution_ms
+no-protection,13.4,6.34,84.2,1305.0,1305.0
+breaker,39.4,0.79,25.4,105.0,905.0
+budget,60.6,1.00,0.0,180.0,450.0
+budget+breaker,49.8,0.75,0.0,105.0,450.0
