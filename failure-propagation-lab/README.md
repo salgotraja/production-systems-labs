@@ -314,3 +314,98 @@ rps), and the state columns record the whole arc: closed -> open at ~2.09s -> ha
 | `breaker/BreakerStormSimulator.java` | Post 2's machine + routes + breaker gates + fail-fast responses |
 | `breaker/BreakerStormScenario.java` | The hard-down comparison and the blast-radius timeline |
 | `CircuitBreakerLiveMain.java` | The Javalin live mode - trip it with curl |
+
+---
+
+## Post 4: Timeout Budgeting
+
+**TL;DR**
+- A propagated deadline is the latency dial: the request carries an absolute budget, every hop
+  refuses to start - or keep running - a call that cannot finish in time, so p99 tracks the
+  deadline exactly (450ms at a 400ms deadline, 1000ms at a 1000ms deadline) where an
+  uncoordinated per-call timeout leaves it flat at 1305ms
+- A breaker bounds the dependency's *load*, not any single request's *latency*: across the whole
+  deadline sweep its p99 sits at ~905ms regardless of how long the client is willing to wait
+- The headline: a deadline tighter than one retry-width (timeout 400 + backoff 50 = 450ms)
+  admits a single attempt, so the retry storm never forms, the database stays unsaturated, and
+  the healthy 60% succeed - and because the budget acts on the very first request with no
+  warmup, at a tight deadline it beats the breaker (60.6% vs 39.4% success)
+
+This is the fix for the uncoordinated timeout Posts 2 and 3 kept flagging: a 400ms caller giving
+up while its callee's ~1300ms retry budget ran on. The deadline now travels *with* the request,
+so even an abandoned subtree self-terminates at it.
+
+### Run it
+
+```bash
+./gradlew :failure-propagation-lab:runTimeoutBudgets -Pargs="--deterministic --duration 5s --output-dir ./results/timeout-budgets"
+```
+
+The model is a fully synthetic, single-threaded discrete-event simulation, so output is
+byte-for-byte reproducible.
+
+### What it models
+
+Post 3's chain and breaker exactly (frontend -> service-a -> database, R=3, 400ms timeout, a
+50%/20-call breaker), but the database is *partially* degraded: a fixed-seed 40% of calls are
+slow (500ms, past the timeout), the rest healthy. A real outage is the breaker's job (Post 3);
+partial degradation is the hard case, because the slow minority still storms while the majority
+is fine. The new control is a propagated `TimeoutBudget` (deadline + floor). Two experiments:
+
+1. **The deadline sweep (the hero)** - the client deadline is swept across one retry-width for
+   three policies (no protection, breaker only, budget only).
+2. **The tight-deadline table** - at the 400ms deadline, all four combinations head to head.
+
+### Expected golden output (deterministic, 5s)
+
+Deadline sweep (success% / p99 resolution ms):
+
+| Deadline | no-protection | breaker | budget |
+|---:|---|---|---|
+| 400 | 13.4% / 1305 | 39.4% / 905 | **60.6% / 450** |
+| 450 | 13.6% / 1305 | 39.9% / 905 | **61.0% / 455** |
+| 500 | 13.7% / 1305 | 40.3% / 905 | 19.0% / 550 |
+| 1000 | 16.4% / 1305 | 48.3% / 905 | 16.4% / 1000 |
+
+Read the budget column's p99: it *is* the deadline (450, 455, 550, ... 1000) - the dial. The
+other two are flat (1305 unprotected, 905 breaker), because neither bounds a single request's
+latency. And the success knee at 450ms is the storm threshold: below one retry-width the budget
+admits one attempt and the storm cannot form (60% succeed); at 500ms a retry fits, the storm
+returns, and success collapses to ~19%.
+
+Tight-deadline table (400ms):
+
+| Policy | Success% | DB att/req | Past-deadline% | p50 | p99 |
+|---|--:|--:|--:|--:|--:|
+| no-protection | 13.4 | 6.34 | 84.2 | 1305 | 1305 |
+| breaker | 39.4 | 0.79 | 25.4 | 105 | 905 |
+| budget | **60.6** | 1.00 | **0.0** | 180 | **450** |
+| budget+breaker | 49.8 | 0.75 | 0.0 | 105 | 450 |
+
+At a tight deadline the budget alone wins: it prevents the storm (1.00 db attempt/request, zero
+work past the deadline) and serves the healthy majority. Adding the breaker actually *costs*
+success here (49.8 vs 60.6) - it sheds requests the single-attempt budget would have served. The
+breaker earns its place at *loose* deadlines, where the storm forms despite budgeting and its
+load relief is the only thing that helps. The tools are complementary, not ranked: the deadline
+is the first-line dial; the breaker is for when you cannot tighten it.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `fp-post4-deadline-sweep.csv` | One row per (deadline, policy) - golden contract |
+| `fp-post4-policy-table.csv` | Four policies at the 400ms deadline - golden contract |
+| `fp-post4-deadline-sweep.png` | Success vs deadline: the dial and the budget/breaker crossover |
+| `fp-post4-latency-cap.png` | p99 vs deadline: budget tracks it, the others are flat |
+| `manifest.json` / `report.html` | Run receipt and self-contained HTML report |
+
+### Key source files
+
+| File | Role |
+|---|---|
+| `breaker/TimeoutBudget.java` | The propagated deadline (budget + floor) |
+| `breaker/BreakerStormSimulator.java` | Post 3's machine + the deadline gate and timeout cap |
+| `cascade/ServiceTime.java` | `partialDegradation` - a fixed-seed slow fraction |
+| `budget/BudgetScenario.java` | The deadline sweep and the tight-deadline table |
+| `charting/BudgetChartGenerator.java` | XChart PNGs for the dial and the latency cap |
+| `TimeoutBudgetsMain.java` | Entry point: CSVs, charts, manifest, report |

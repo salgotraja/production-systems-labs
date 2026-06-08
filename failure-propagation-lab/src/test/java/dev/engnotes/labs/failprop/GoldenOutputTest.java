@@ -41,6 +41,15 @@ class GoldenOutputTest {
     }
 
     @Test
+    void timeoutBudgetsMatchesGoldenCsv() throws Exception {
+        Path outputDir = tempDir.resolve("fp-post4");
+        TimeoutBudgetsMain.main(args(outputDir, "--duration", "5s"));
+        assertCsvEquals("fp-post4/fp-post4-deadline-sweep.csv", outputDir.resolve("fp-post4-deadline-sweep.csv"));
+        assertCsvEquals("fp-post4/fp-post4-policy-table.csv", outputDir.resolve("fp-post4-policy-table.csv"));
+        assertCommonArtifacts(outputDir, 4);
+    }
+
+    @Test
     void circuitBreakerMatchesGoldenCsv() throws Exception {
         Path outputDir = tempDir.resolve("fp-post3");
         CircuitBreakerMain.main(args(outputDir, "--duration", "5s"));

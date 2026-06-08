@@ -1,8 +1,28 @@
 # Changelog
 
-## [Unreleased] - 2026-06-07
+## [Unreleased] - 2026-06-08
 
 ### Added
+
+**Series 3: Failure Propagation in Microservices - Post 4**
+
+- Post 4 "Timeout Budgeting" (`runTimeoutBudgets` + `runPost4` alias)
+  - `breaker`: `TimeoutBudget` (propagated deadline + floor) + a deadline gate in
+    `BreakerStormSimulator` - a request carries an absolute deadline down the call tree
+    (rootArrivalMs propagated to children); a hop refuses to start a call past the deadline and
+    caps every in-flight call's timeout at `min(static, remaining)`, so even an abandoned
+    subtree self-terminates. Default off; Post 3 golden verified byte-unchanged
+  - `cascade`: additive `ServiceTime.partialDegradation` (fixed-seed slow fraction; the regime
+    a breaker handles least cleanly - the slow minority storms but the dependency is not down)
+  - `budget`: `BudgetScenario` - deadline sweep (budget p99 tracks the deadline 450->1000 where
+    breaker is flat at 905 and no-protection at 1305; success knee at one retry-width 450ms) +
+    tight-deadline policy table (budget alone 60.6% beats breaker 39.4% by preventing the storm
+    on the first request, no warmup; the breaker earns its place only at loose deadlines)
+  - `charting`: `BudgetChartGenerator` - the deadline dial and the latency cap
+  - Golden files in `golden/fp-post4/`; CI report step extended
+  - Tests: deadline caps p99, starts no work past the deadline, tight deadline prevents the
+    storm and beats the breaker, loose deadline lets the breaker win, hard-down budget-off
+    reproduces Post 2 (the gate is inert when disabled), deterministic; golden + registry
 
 **Series 3: Failure Propagation in Microservices - Post 3**
 

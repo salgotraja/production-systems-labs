@@ -51,8 +51,17 @@ public final class ExperimentRegistry {
             Path.of("build", "fp-post3"),
             Path.of("golden", "fp-post3"));
 
+    public static final ExperimentDefinition TIMEOUT_BUDGETS = new ExperimentDefinition(
+            "timeout-budgets",
+            4,
+            "Timeout Budgeting",
+            "runTimeoutBudgets",
+            TimeoutBudgetsMain.class,
+            Path.of("build", "fp-post4"),
+            Path.of("golden", "fp-post4"));
+
     private static final List<ExperimentDefinition> ALL =
-            List.of(CASCADING_FAILURES, RETRY_STORMS, CIRCUIT_BREAKER);
+            List.of(CASCADING_FAILURES, RETRY_STORMS, CIRCUIT_BREAKER, TIMEOUT_BUDGETS);
 
     private ExperimentRegistry() {}
 
