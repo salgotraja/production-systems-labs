@@ -327,9 +327,11 @@ rps), and the state columns record the whole arc: closed -> open at ~2.09s -> ha
 - A breaker bounds the dependency's *load*, not any single request's *latency*: across the whole
   deadline sweep its p99 sits at ~905ms regardless of how long the client is willing to wait
 - The headline: a deadline tighter than one retry-width (timeout 400 + backoff 50 = 450ms)
-  admits a single attempt, so the retry storm never forms, the database stays unsaturated, and
-  the healthy 60% succeed - and because the budget acts on the very first request with no
-  warmup, at a tight deadline it beats the breaker (60.6% vs 39.4% success)
+  admits a single attempt, so the retry storm never forms. A 500ms call can never beat a 400ms
+  deadline (the slow 40% are doomed either way), but dropping the database from a 6.34x-amplified
+  flood to one attempt per request stops the eligible fast calls from drowning in retry queue, so
+  the healthy 60% succeed - and because the budget acts on the very first request with no warmup,
+  at a tight deadline it beats the breaker (60.6% vs 39.4% success)
 
 This is the fix for the uncoordinated timeout Posts 2 and 3 kept flagging: a 400ms caller giving
 up while its callee's ~1300ms retry budget ran on. The deadline now travels *with* the request,
